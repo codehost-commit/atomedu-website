@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atom Edu | Free AI Assignment Maker for Teachers</title>
+    <meta
+      name="description"
+      content="Atom Edu helps teachers draft printable assignments, worksheets, quizzes, answer keys, and diagram-ready handouts for free."
+    />
+    <link rel="icon" href="public/atom-mark.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #14231e;
+        --soft: #46524c;
+        --muted: #6e7973;
+        --paper: #f7faf8;
+        --surface: #ffffff;
+        --mint: #dff4e9;
+        --blue: #2258ef;
+        --blue-dark: #1b45bd;
+        --line: #d7e0dc;
+        --coral: #ff7a59;
+        --gold: #f0b429;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "DM Sans", system-ui, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .container {
+        width: min(1160px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid var(--line);
+        background: rgba(247, 250, 248, 0.92);
+        backdrop-filter: blur(14px);
+      }
+
+      .nav {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 22px;
+      }
+
+      .mark {
+        width: 28px;
+        height: 28px;
+        display: inline-block;
+        background: var(--blue);
+        mask: url("public/atom-mark.svg") center / contain no-repeat;
+        -webkit-mask: url("public/atom-mark.svg") center / contain no-repeat;
+      }
+
+      .brand span:last-child {
+        color: var(--blue);
+        font-weight: 500;
+      }
+
+      .navlinks {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 13px;
+        color: var(--soft);
+      }
+
+      .navlinks a {
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .btn {
+        border: 1px solid var(--ink);
+        background: transparent;
+        color: var(--ink);
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        font: 700 13px "DM Sans", sans-serif;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .btn.primary {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+
+      .btn.primary:hover {
+        background: var(--blue-dark);
+      }
+
+      .hero {
+        min-height: calc(100vh - 70px);
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+        gap: 54px;
+        align-items: center;
+        padding: 52px 0 64px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--ink);
+        background: var(--ink);
+        color: #fff;
+        padding: 6px 10px;
+        font: 500 11px "DM Mono", monospace;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+
+      .badge::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--coral);
+      }
+
+      h1 {
+        margin: 22px 0 22px;
+        max-width: 12ch;
+        font-size: clamp(48px, 7vw, 86px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 50px);
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.2;
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--soft);
+        font-size: 18px;
+        max-width: 54ch;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+      }
+
+      .stats span {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+        padding: 9px 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .stats b {
+        color: var(--ink);
+        font-size: 18px;
+        margin-right: 6px;
+      }
+
+      .maker {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: 0 24px 70px rgba(20, 35, 30, 0.12);
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr;
+        min-height: 650px;
+      }
+
+      form {
+        border-right: 1px solid var(--line);
+        padding: 24px;
+      }
+
+      label {
+        display: block;
+        color: var(--muted);
+        font: 500 10px "DM Mono", monospace;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        margin: 0 0 7px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid #bcc9c3;
+        background: #fff;
+        color: var(--ink);
+        font: 600 14px "DM Sans", sans-serif;
+        padding: 11px 12px;
+        margin-bottom: 15px;
+      }
+
+      textarea {
+        min-height: 118px;
+        resize: vertical;
+      }
+
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .maker button {
+        width: 100%;
+      }
+
+      .hint {
+        margin: 13px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .paper-wrap {
+        padding: 22px;
+        background: linear-gradient(135deg, #edf7f2, #f8fbff);
+      }
+
+      .paper {
+        min-height: 600px;
+        background: #fff;
+        border: 1px solid #cfdad5;
+        box-shadow: inset 0 0 0 10px #fafcfb;
+        padding: 36px 38px;
+        white-space: pre-wrap;
+        font-size: 13px;
+        line-height: 1.62;
+      }
+
+      .paper-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid #aebbb5;
+        padding-bottom: 14px;
+        margin-bottom: 14px;
+      }
+
+      .paper-title b {
+        font-size: 20px;
+      }
+
+      .paper-title span {
+        font: 500 9px "DM Mono", monospace;
+        color: var(--muted);
+      }
+
+      .diagram {
+        height: 142px;
+        margin: 16px 0;
+        border-left: 2px solid var(--ink);
+        border-bottom: 2px solid var(--ink);
+        background:
+          linear-gradient(#edf4f1 1px, transparent 1px),
+          linear-gradient(90deg, #edf4f1 1px, transparent 1px);
+        background-size: 46px 34px;
+        position: relative;
+      }
+
+      .diagram::before {
+        content: "";
+        position: absolute;
+        left: 26px;
+        right: 24px;
+        bottom: 28px;
+        height: 82px;
+        border-bottom: 4px solid var(--blue);
+        border-radius: 0 0 80% 0;
+        transform: skewX(-20deg);
+      }
+
+      .diagram em,
+      .diagram strong {
+        position: absolute;
+        font: 600 9px "DM Mono", monospace;
+        color: var(--soft);
+        font-style: normal;
+      }
+
+      .diagram em {
+        left: 8px;
+        top: 8px;
+      }
+
+      .diagram strong {
+        right: 8px;
+        bottom: 6px;
+      }
+
+      .band {
+        background: var(--ink);
+        color: #fff;
+        padding: 70px 0;
+      }
+
+      .band p {
+        color: #cbd5d0;
+      }
+
+      .section {
+        padding: 86px 0;
+      }
+
+      .section-head {
+        max-width: 64ch;
+        margin-bottom: 36px;
+      }
+
+      .kicker {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font: 500 10px "DM Mono", monospace;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        border: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .cell {
+        background: #fff;
+        padding: 28px 26px;
+      }
+
+      .cell .num {
+        color: var(--blue);
+        font: 600 10px "DM Mono", monospace;
+        margin-bottom: 14px;
+      }
+
+      .cell p {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 10px 0 0;
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 34px 0 44px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .maker {
+          grid-template-columns: 1fr;
+        }
+
+        form {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        h1 {
+          max-width: none;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .container {
+          width: min(100% - 28px, 1160px);
+        }
+
+        .navlinks a:not(.btn) {
+          display: none;
+        }
+
+        .two {
+          grid-template-columns: 1fr;
+        }
+
+        .paper {
+          padding: 26px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav class="container nav" aria-label="Main navigation">
+        <a class="brand" href="/">
+          <span class="mark" aria-hidden="true"></span>
+          <span>atom</span><span>edu</span>
+        </a>
+        <div class="navlinks">
+          <a href="#try">Try preview</a>
+          <a href="#features">Features</a>
+          <a href="#free">Why free</a>
+          <a class="btn primary" href="#try">Make a worksheet</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="container hero">
+        <div>
+          <span class="badge">Free for teachers</span>
+          <h1>Printable assignments from a rough idea.</h1>
+          <p class="lead">
+            Atom Edu helps teachers draft worksheets, quizzes, answer keys, and
+            diagram-ready handouts with clean STEM formatting and teacher control.
+          </p>
+          <div class="hero-actions">
+            <a class="btn primary" href="#try">Try the preview</a>
+            <a class="btn" href="https://github.com/codehost-commit/atomedu-website">View source</a>
+          </div>
+          <div class="stats">
+            <span><b>1</b> free preview</span>
+            <span><b>5</b> assignments/day in app</span>
+            <span><b>$0</b> for teachers</span>
+          </div>
+        </div>
+
+        <div id="try" class="maker">
+          <form id="maker-form">
+            <label for="topic">Assignment topic</label>
+            <textarea id="topic">Calculus worksheet on derivatives and antiderivatives with 6 multiple choice questions, 3 short answers, and 1 graph question.</textarea>
+
+            <div class="two">
+              <div>
+                <label for="className">Class</label>
+                <input id="className" value="AP Calculus AB" />
+              </div>
+              <div>
+                <label for="format">Format</label>
+                <select id="format">
+                  <option>Worksheet</option>
+                  <option>Quiz</option>
+                  <option>Assignment</option>
+                  <option>Lab handout</option>
+                </select>
+              </div>
+            </div>
+
+            <label for="details">Counts and details</label>
+            <input id="details" value="10 total questions, answer key, 20 points" />
+
+            <label for="diagrams">Diagrams</label>
+            <input id="diagrams" value="One labeled graph with axes, intercepts, and curve labels" />
+
+            <button class="btn primary" type="submit">Generate preview</button>
+            <p class="hint">
+              This GitHub Pages version shows the product preview. The live AI,
+              accounts, PDF downloads, and limits need the backend deployment.
+            </p>
+          </form>
+
+          <div class="paper-wrap">
+            <article id="paper" class="paper" aria-live="polite"></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="free" class="band">
+        <div class="container">
+          <p class="kicker">The promise</p>
+          <h2>Free is the product model, not a trial.</h2>
+          <p class="lead">
+            Atom Edu is built so teachers can generate useful first drafts
+            without subscriptions, ads, or selling classroom data.
+          </p>
+        </div>
+      </section>
+
+      <section id="features" class="container section">
+        <div class="section-head">
+          <p class="kicker">What it makes</p>
+          <h2>A real workbench for assignment creation.</h2>
+        </div>
+        <div class="grid">
+          <article class="cell">
+            <div class="num">01</div>
+            <h3>Print-ready worksheets</h3>
+            <p>Title, Name/Date/Period, directions, question mix, points, and answer key.</p>
+          </article>
+          <article class="cell">
+            <div class="num">02</div>
+            <h3>LaTeX-first STEM</h3>
+            <p>Math, chemistry, and physics notation stays readable instead of raw caret text.</p>
+          </article>
+          <article class="cell">
+            <div class="num">03</div>
+            <h3>Better diagram briefs</h3>
+            <p>Axes, labels, values, arrows, shapes, and relationships are specified clearly.</p>
+          </article>
+          <article class="cell">
+            <div class="num">04</div>
+            <h3>Teacher accounts</h3>
+            <p>Email and password accounts unlock private libraries and PDF downloads.</p>
+          </article>
+          <article class="cell">
+            <div class="num">05</div>
+            <h3>Daily guardrails</h3>
+            <p>The backend app limits shared AI usage to 5 assignments per teacher per day.</p>
+          </article>
+          <article class="cell">
+            <div class="num">06</div>
+            <h3>Teacher approval</h3>
+            <p>AI drafts the paper. The teacher decides what is accurate, appropriate, and ready.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container foot">
+        <span>© Atom Edu</span>
+        <span>Make the work. Keep the judgment.</span>
+      </div>
+    </footer>
+
+    <script>
+      const paper = document.getElementById("paper");
+      const form = document.getElementById("maker-form");
+
+      function renderWorksheet() {
+        const topic = document.getElementById("topic").value.trim();
+        const className = document.getElementById("className").value.trim() || "Class";
+        const format = document.getElementById("format").value;
+        const details = document.getElementById("details").value.trim();
+        const diagrams = document.getElementById("diagrams").value.trim();
+
+        paper.innerHTML = `
+          <div class="paper-title">
+            <b>${className}: ${format}</b>
+            <span>Name: __________ Date: ______ Period: ___</span>
+          </div>
+Directions: Complete all questions. Show work for short answer and FRQ items. Use exact notation.
+
+Teacher request:
+${topic}
+
+Details:
+${details}
+
+1. (1 pt) Multiple Choice
+Which expression represents the derivative of \\(f(x)=3x^2-4x+1\\)?
+
+A. \\(6x-4\\)
+B. \\(3x-4\\)
+C. \\(x^3-2x^2+x\\)
+D. \\(6x+4\\)
+
+2. (2 pts) Short Answer
+Evaluate \\(\\int (2x+3)\\,dx\\) and simplify.
+
+Answer: ________________________________________________
+
+3. (4 pts) Graph Analysis
+Use the diagram to estimate the interval where the function is increasing.
+
+<div class="diagram"><em>y</em><strong>x</strong></div>
+
+Diagram spec:
+${diagrams || "Coordinate grid with labeled x-axis, y-axis, intercepts, and a smooth curve."}
+
+Answer Key:
+1. A
+2. \\(x^2+3x+C\\)
+3. Accept intervals supported by the graph and student reasoning.
+        `;
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        renderWorksheet();
+      });
+
+      renderWorksheet();
+    </script>
+  </body>
+</html>
