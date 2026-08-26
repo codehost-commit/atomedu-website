@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Legal | Atom Edu</title>
+    <meta name="description" content="Privacy, terms, and attributions for Atom Edu." />
+    <link rel="icon" href="/public/favicon.png" />
+    <style>
+      :root { --ink:#14231e; --paper:#f7faf8; --line:#d7e0dc; --muted:#65716a; --blue:#2258ef; --navy:#030413; }
+      * { box-sizing:border-box; } body { margin:0; font-family:"DM Sans",Arial,sans-serif; background:var(--paper); color:var(--ink); line-height:1.65; } a { color:inherit; }
+      .wrap { width:min(980px,calc(100% - 40px)); margin:auto; } header { height:70px; display:flex; align-items:center; border-bottom:1px solid var(--line); background:rgba(247,250,248,.95); position:sticky; top:0; }
+      .nav { display:flex; width:100%; align-items:center; justify-content:space-between; gap:20px; } .brand { display:flex; align-items:center; gap:10px; text-decoration:none; font-weight:700; font-size:19px; }
+      .mark { width:34px; height:34px; overflow:hidden; position:relative; border-radius:7px; } .mark img { width:115px; height:115px; max-width:none; position:absolute; left:-40px; top:-35px; mix-blend-mode:multiply; }
+      .links { display:flex; gap:18px; align-items:center; font-size:13px; font-weight:600; } .links a { text-decoration:none; } .button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:0 16px; border:1px solid var(--ink); font-size:13px; font-weight:700; text-decoration:none; } .button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+      main { padding:72px 0 88px; } h1 { margin:0 0 16px; font-size:clamp(40px,5vw,64px); line-height:1; } .intro { color:#46524c; max-width:58ch; }
+      section { margin-top:34px; background:#fff; border:1px solid var(--line); padding:28px 24px; } h2 { margin:0 0 12px; font-size:26px; } p { margin:0 0 14px; } p:last-child { margin-bottom:0; }
+      footer { width:min(1240px,calc(100% - 32px)); margin:0 auto 16px; background:var(--navy); color:#f5f4ee; border-radius:34px; padding:48px 46px 26px; } .footer-grid { display:grid; grid-template-columns:1.45fr repeat(3,.7fr); gap:32px; }
+      .footer-brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:19px; } .footer-brand .mark img { mix-blend-mode:normal; content:url("/public/atom-logo-black-bg.png"); } .footer-brand-wrap p { color:#aab2bf; font-size:13px; max-width:30ch; margin:18px 0 0; } .footer-column b { display:block; color:#8ebcf6; font-size:10px; letter-spacing:1px; text-transform:uppercase; margin-bottom:13px; } .footer-column a { display:block; color:#c1c9d3; font-size:13px; padding:4px 0; text-decoration:none; } .footer-bottom { margin-top:42px; padding-top:22px; border-top:1px solid rgba(255,255,255,.12); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; color:#8792a1; font-size:12px; }
+      @media (max-width:820px) { .footer-grid { grid-template-columns:1fr; } .links a:not(.button) { display:none; } }
+    </style>
+  </head>
+  <body>
+    <header><nav class="wrap nav" aria-label="Main navigation"><a class="brand" href="/"><span class="mark"><img src="/public/atom-logo-white-bg.png" alt="" /></span>Atom Edu</a><div class="links"><a href="/about/">About</a><a href="/use/">How it works</a><a href="/login/">Sign in</a><a class="button primary" href="/login/">Sign up</a></div></nav></header>
+    <main class="wrap">
+      <h1>Privacy, Terms, and Attributions</h1>
+      <p class="intro">This static GitHub Pages site is the public front door. The live account, storage, and worksheet-generation product requires a backend deployment.</p>
+      <section id="privacy">
+        <h2>Privacy Policy</h2>
+        <p>Atom Edu may collect account details, assignment prompts, generated content, and basic usage records when the live product is used. Teachers are responsible for reviewing what they submit and should avoid uploading protected student information unless they have authority to do so.</p>
+        <p>Generated output is provided for teacher review. Atom Edu is not a substitute for professional judgment, grading policy, or district compliance review.</p>
+      </section>
+      <section id="terms">
+        <h2>Terms of Use</h2>
+        <p>Use of Atom Edu means you accept that worksheet output may require correction before classroom use. You agree not to use the service for unlawful activity, abuse, or unauthorized access attempts.</p>
+        <p>To the fullest extent allowed by law, Atom Edu limits liability to the amount paid for the relevant service period, which may be zero for free use.</p>
+      </section>
+      <section id="attributions">
+        <h2>Attributions</h2>
+        <p>Math rendering in the live app uses KaTeX. Additional open-source packages may be used in the live product build and are subject to their respective licenses.</p>
+      </section>
+    </main>
+    <footer><div class="footer-grid"><div class="footer-brand-wrap"><div class="footer-brand"><span class="mark"><img src="/public/atom-logo-black-bg.png" alt="" /></span>Atom Edu</div><p>Free assignment tools for teachers. Your classroom materials stay yours.</p></div><div class="footer-column"><b>Account</b><a href="/login/">Sign up</a><a href="/login/">Sign in</a><a href="/use/">Use Atom</a></div><div class="footer-column"><b>Atom</b><a href="/about/">About</a><a href="/features/">Features</a><a href="/free/">Why it is free</a></div><div class="footer-column"><b>Legal</b><a href="/legal/#privacy">Privacy</a><a href="/legal/#terms">Terms</a><a href="/legal/#attributions">Attributions</a></div></div><div class="footer-bottom"><span>© 2026 Atom Edu. All rights reserved.</span><a href="/legal/">Legal information</a></div></footer>
+  </body>
+</html>
