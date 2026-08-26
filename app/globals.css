@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+@import "tailwindcss";
+
+/* ============================ tokens ============================ */
+:root{
+  --ink:#14231e;
+  --ink-soft:#41493f;
+  --paper:#f7faf8;
+  --surface:#ffffff;
+  --surface-2:#edf4f1;
+  --line:#d7e0dc;
+  --line-strong:#14231e;
+  --muted:#6d746e;
+  --blue:#2258ef;
+  --blue-weak:#eaf0ff;
+  --blue-ink:#1c48c8;
+  --green:#2d7654;
+  --mint:#dff4e9;
+  --coral:#ff7a59;
+  --gold:#f0b429;
+  --amber:#9a6a12;
+  --red:#c0432f;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"DM Sans",Arial,system-ui,sans-serif;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+::selection{background:var(--blue-weak)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ============================ type ============================ */
+h1{font-size:clamp(46px,7vw,88px);letter-spacing:0;line-height:.95;font-weight:650;margin:0;text-wrap:balance}
+h2{font-size:clamp(30px,4vw,52px);letter-spacing:0;line-height:1.03;font-weight:650;margin:0;text-wrap:balance}
+h3{font-size:20px;letter-spacing:0;margin:0;font-weight:650}
+.kicker{font:500 10px "DM Mono",monospace;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+.lead{font-size:18px;line-height:1.55;color:var(--ink-soft)}
+
+/* ============================ layout ============================ */
+.container{max-width:1180px;margin:0 auto;padding:0 28px}
+.container-narrow{max-width:840px;margin:0 auto;padding:0 28px}
+.section{padding:96px 0}
+.section-sm{padding:64px 0}
+.divider-top{border-top:1px solid var(--line)}
+
+/* ============================ buttons ============================ */
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;font:600 13px "DM Sans";padding:12px 18px;cursor:pointer;text-decoration:none;transition:background .12s,border-color .12s,color .12s;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-ink)}
+.btn-ink{background:var(--ink);color:var(--paper)}
+.btn-ink:hover{background:#22362f}
+.btn-ghost{border-color:var(--line-strong);color:var(--ink)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-sm{padding:8px 13px;font-size:12px}
+.btn-link{padding:0;border:0;background:none;color:var(--blue);font:600 13px "DM Sans";cursor:pointer;text-decoration:none}
+.btn-link:hover{text-decoration:underline}
+.btn:disabled{opacity:.55;cursor:default}
+
+/* ============================ badges ============================ */
+.badge{display:inline-flex;align-items:center;gap:7px;font:500 11px "DM Mono",monospace;letter-spacing:.4px;padding:6px 11px;border:1px solid var(--line-strong)}
+.badge-free{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.badge-dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+/* ============================ top nav ============================ */
+.topbar{position:sticky;top:0;z-index:40;height:68px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 90%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center}
+.topbar .container{display:flex;align-items:center;gap:34px;width:100%}
+.wordmark{display:inline-flex;align-items:center;gap:9px;font-size:22px;font-weight:700;letter-spacing:0;color:var(--ink);text-decoration:none;flex:none}
+.logo-mark{width:26px;height:26px;display:inline-block;flex:none;background:var(--blue);mask:url("/atom-mark.svg") center/contain no-repeat;-webkit-mask:url("/atom-mark.svg") center/contain no-repeat}
+.wordmark span{color:var(--blue);font-weight:500}
+.nav-links{display:flex;gap:6px;flex:1}
+.nav-links a{color:#5c655f;text-decoration:none;font:500 13px "DM Sans";padding:9px 12px;border-bottom:2px solid transparent}
+.nav-links a:hover{color:var(--ink)}
+.nav-links a.active{color:var(--ink);border-bottom-color:var(--blue)}
+.nav-right{display:flex;align-items:center;gap:12px;flex:none}
+.nav-right .who{display:flex;align-items:center;gap:9px}
+.nav-right .avatar{background:#f8b7a9;color:#47201a;display:grid;place-items:center;width:31px;height:31px;border-radius:50%;font:600 9px "DM Mono"}
+.nav-right .uname{font-size:12px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-right form{margin:0}
+.nav-right .signout{border:0;background:transparent;color:var(--muted);font:500 11px "DM Sans";cursor:pointer}
+.nav-right .signout:hover{color:var(--ink)}
+.nav-right .textlink{color:var(--muted);text-decoration:none;font:500 12px "DM Sans"}
+.nav-right .textlink:hover{color:var(--ink)}
+
+/* ============================ hero ============================ */
+.hero{padding:72px 0 84px;display:grid;grid-template-columns:1fr .82fr;align-items:center;gap:64px}
+.hero h1{max-width:12ch;margin-bottom:26px}
+.hero .lead{max-width:44ch}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:30px}
+.hero-note{font-size:12px;color:var(--muted);margin-top:16px}
+
+/* ---- document preview card (hero right) ---- */
+.preview{border:1px solid var(--line);background:var(--surface);box-shadow:0 1px 0 var(--line)}
+.preview-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.preview-tab{font:500 10px "DM Mono";letter-spacing:1px;text-transform:uppercase;color:var(--ink)}
+.preview-status{font:500 10px "DM Mono";letter-spacing:.5px;color:var(--blue);border:1px solid var(--blue);padding:3px 8px}
+.preview-body{padding:22px 20px}
+.preview-eyebrow{font:500 10px "DM Mono";letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.preview-title{font-size:24px;letter-spacing:0;margin:0 0 18px;font-weight:600}
+.preview-lines{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:11px}
+.preview-lines li{font-size:13.5px;line-height:1.45;color:var(--ink-soft)}
+.preview-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.preview-foot span{font:500 10px "DM Mono";letter-spacing:.4px;color:var(--muted);border:1px solid var(--line);padding:5px 9px}
+
+/* ============================ product hero ============================ */
+.product-hero{background:linear-gradient(180deg,#f7faf8 0%,#eef7f2 100%);border-bottom:1px solid var(--line)}
+.product-hero-grid{min-height:calc(100vh - 68px);padding-top:48px;padding-bottom:48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.75fr);gap:54px;align-items:center}
+.hero-copy h1{max-width:12ch;margin-bottom:24px}
+.hero-copy .lead{max-width:50ch}
+.metric-strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.metric-strip span{display:inline-flex;align-items:baseline;gap:7px;border:1px solid var(--line);background:rgba(255,255,255,.8);padding:9px 12px;font-size:12px;color:var(--muted)}
+.metric-strip b{font:700 18px "DM Sans";color:var(--ink)}
+.hero-sample{display:grid;place-items:center}
+.sample-page{width:min(100%,460px);aspect-ratio:8.5/11;border:1px solid #c8d6d0;background:#fff;padding:28px 30px;box-shadow:0 18px 48px rgba(20,35,30,.12);font-size:12px;line-height:1.5;transform:rotate(1deg)}
+.sample-head{display:grid;gap:10px;padding-bottom:13px;margin-bottom:14px;border-bottom:1px solid #b7c5bf}
+.sample-head b{font-size:19px;line-height:1.15}
+.sample-head span{font:500 9px "DM Mono";color:var(--muted)}
+.sample-page ol{padding-left:18px;margin:12px 0;display:grid;gap:9px}
+.sample-diagram{position:relative;height:132px;margin-top:22px;border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);background:linear-gradient(#edf4f1 1px,transparent 1px),linear-gradient(90deg,#edf4f1 1px,transparent 1px);background-size:44px 32px}
+.sample-diagram i{position:absolute;left:22px;right:24px;bottom:26px;height:70px;border-left:0;border-bottom:3px solid var(--blue);border-radius:0 0 80% 0;transform:skewX(-20deg)}
+.sample-diagram span{position:absolute;left:8px;top:8px;font:500 9px "DM Mono";color:var(--green)}
+.sample-diagram strong{position:absolute;right:8px;bottom:6px;font:500 9px "DM Mono";color:var(--green)}
+
+/* ============================ creator ============================ */
+#try{scroll-margin-top:86px}
+.creator{display:grid;grid-template-columns:minmax(320px,430px) minmax(0,1fr);gap:26px;align-items:start}
+.creator:not(.creator-has-output){grid-template-columns:minmax(320px,520px) minmax(320px,1fr)}
+.creator-panel,.worksheet-output{border:1px solid var(--line);background:var(--surface);padding:22px;box-shadow:0 1px 0 rgba(20,35,30,.06)}
+.creator-panel .note{margin:0 0 16px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.creator-panel .btn-primary{width:100%;justify-content:center;margin-top:4px}
+.worksheet-output{min-height:520px}
+.output-toolbar{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.output-toolbar .kicker{margin:0 0 4px}
+.toolbar-note{font-size:12px;color:var(--muted);margin:0}
+.toolbar-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.worksheet-paper{white-space:pre-wrap;border:1px solid #cfdad5;background:#fff;min-height:520px;max-height:76vh;overflow:auto;padding:34px 38px;font-size:14px;line-height:1.65;color:#1b2924;box-shadow:inset 0 0 0 10px #fafcfb}
+.empty-paper{min-height:470px;display:flex;flex-direction:column;justify-content:center;border:1px dashed #b9c8c1;background:#fafdff;padding:34px}
+.empty-paper h3{font-size:28px;max-width:18ch;margin-bottom:12px}
+.empty-paper p{max-width:42ch;color:var(--muted);margin:0}
+.band-grid{display:grid;grid-template-columns:.9fr 1fr;gap:48px;align-items:center}
+
+/* ============================ bands & sections ============================ */
+.band{background:var(--ink);color:var(--paper)}
+.band .kicker{color:#aab3ac}
+.band h2{color:var(--paper)}
+.band .lead{color:#c5cbc6}
+
+.sec-head{max-width:60ch;margin-bottom:44px}
+.sec-head .lead{margin-top:16px}
+
+/* ============================ feature grid ============================ */
+.grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.cell{background:var(--surface);padding:28px 26px}
+.cell .k{font:500 10px "DM Mono";letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:16px}
+.cell h3{margin:0 0 10px;font-size:21px}
+.cell p{font-size:14px;line-height:1.55;color:var(--muted);margin:0}
+
+/* soft cards (no hairline grid) */
+.cards{display:grid;gap:16px}
+.card{border:1px solid var(--line);background:var(--surface);padding:24px;box-shadow:0 1px 0 var(--line)}
+.card h3{margin:0 0 8px}
+.card p{font-size:14px;color:var(--muted);margin:0;line-height:1.55}
+
+/* ============================ promise list ============================ */
+.promise{border-top:1px solid var(--line-strong)}
+.promise .row{display:grid;grid-template-columns:40px 220px 1fr;gap:20px;padding:20px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.promise .row .i{font:500 12px "DM Mono";color:var(--blue)}
+.promise .row h3{font-size:16px;margin:0}
+.promise .row p{margin:0;font-size:14px;color:var(--muted)}
+
+/* ============================ forms ============================ */
+.field{display:block;margin-bottom:16px}
+.field label{display:block;font:500 10px "DM Mono";letter-spacing:.5px;color:#58615b;margin-bottom:7px;text-transform:uppercase}
+.field input,.field select,.field textarea{display:block;width:100%;border:1px solid #bfc4bc;background:var(--surface);color:var(--ink);font:500 14px "DM Sans";padding:11px 12px;border-radius:0}
+.field textarea{min-height:96px;line-height:1.5;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue);outline-offset:-2px}
+.field .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
+
+.note{font-size:13px;line-height:1.55;padding:13px 15px;border:1px solid}
+.note-ok{color:#1f5340;background:#eef6f1;border-color:#c4e0d3}
+.note-err{color:#7f2114;background:#fdeeeb;border-color:#f3c7bf}
+.note-info{color:var(--ink-soft);background:var(--surface-2);border-color:var(--line)}
+
+/* ============================ page heading (app + doc pages) ============================ */
+.page-head{padding:70px 0 44px;border-bottom:1px solid var(--line-strong)}
+.page-head h1{font-size:clamp(40px,5.5vw,72px)}
+.page-head .lead{margin-top:20px;max-width:60ch}
+
+/* ============================ footer ============================ */
+.site-footer{border-top:1px solid var(--line);padding:38px 28px 52px;max-width:1180px;margin:60px auto 0;display:grid;grid-template-columns:1.2fr 1fr 1fr;align-items:start;gap:28px}
+.footer-brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:600;color:var(--ink);letter-spacing:0}
+.footer-brand .logo-mark{width:28px;height:28px}
+.footer-brand span{color:var(--blue);font-weight:500}
+.site-footer .fcol b{display:block;font:500 10px "DM Mono";letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.site-footer .fcol a{display:block;font-size:13px;color:var(--ink-soft);text-decoration:none;padding:4px 0}
+.site-footer .fcol a:hover{color:var(--ink)}
+.site-footer .ftag{grid-column:1/-1;border-top:1px solid var(--line);padding-top:20px;margin-top:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+
+/* ============================ responsive ============================ */
+@media(max-width:860px){
+  .hero,.product-hero-grid{grid-template-columns:1fr;gap:36px;padding-top:48px;padding-bottom:56px}
+  .hero h1{max-width:none}
+  .product-hero-grid{min-height:auto}
+  .hero-copy h1{max-width:none}
+  .sample-page{transform:none}
+  .creator,.creator:not(.creator-has-output){grid-template-columns:1fr}
+  .field-grid,.band-grid{grid-template-columns:1fr}
+  .output-toolbar{flex-direction:column}
+  .toolbar-actions{justify-content:flex-start}
+  .worksheet-paper{padding:24px 20px}
+  .grid-3,.grid-2{grid-template-columns:1fr}
+  .promise .row{grid-template-columns:1fr;gap:6px}
+  .section{padding:64px 0}
+  .topbar .container{gap:14px}
+  .nav-links{gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .nav-links a{white-space:nowrap;padding:9px 8px}
+  .nav-right .uname{display:none}
+  .hero-cta .btn{flex:1;justify-content:center}
+  .site-footer{grid-template-columns:1fr 1fr;gap:22px}
+}

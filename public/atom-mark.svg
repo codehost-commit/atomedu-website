@@ -1,0 +1,8 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Atom">
+  <g stroke="#14231e" stroke-width="2.3">
+    <ellipse cx="24" cy="24" rx="22" ry="8.4"/>
+    <ellipse cx="24" cy="24" rx="22" ry="8.4" transform="rotate(60 24 24)"/>
+    <ellipse cx="24" cy="24" rx="22" ry="8.4" transform="rotate(120 24 24)"/>
+  </g>
+  <path d="M24 12 C25.6 21 27 22.4 36 24 C27 25.6 25.6 27 24 36 C22.4 27 21 25.6 12 24 C21 22.4 22.4 21 24 12 Z" fill="#14231e"/>
+</svg>

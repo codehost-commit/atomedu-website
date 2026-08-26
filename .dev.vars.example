@@ -1,0 +1,20 @@
+# Copy this file to `.dev.vars` (git-ignored) and fill in your values.
+# These are read by the local dev server via cloudflare:workers env.
+
+# Resend API key — https://resend.com/api-keys
+RESEND_API_KEY=re_your_key_here
+
+# The From address for sign-in emails. Until you verify your own domain in
+# Resend you can use their shared sender:
+EMAIL_FROM="Atom Edu <onboarding@resend.dev>"
+
+# Comma-separated emails that get admin access (the /admin dashboard).
+ADMIN_EMAILS=pritamavuthu2010@gmail.com
+
+# Encrypts users' saved AI keys at rest (AES-GCM). Base64 of 32 random bytes.
+# Generate one with:  openssl rand -base64 32
+APP_ENCRYPTION_KEY=
+
+# Optional: a shared AI key that powers the free allowance for users who
+# haven't added their own. OpenAI-compatible.
+OPENAI_API_KEY=
