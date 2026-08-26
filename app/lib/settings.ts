@@ -32,7 +32,7 @@ async function cryptoKey(): Promise<CryptoKey> {
     const decoded = unb64(raw);
     bytes = decoded.length === 32 ? decoded : new Uint8Array(await crypto.subtle.digest("SHA-256", decoded as BufferSource));
   } else {
-    console.warn("[atom-edu] APP_ENCRYPTION_KEY not set — using an insecure dev key. Set a real one in production.");
+    console.warn("[atom-edu] APP_ENCRYPTION_KEY not set. Using an insecure dev key. Set a real one in production.");
     bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("atom-edu-insecure-dev-key")));
   }
   return crypto.subtle.importKey("raw", bytes as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);

@@ -1,19 +1,17 @@
 import { getSessionUser } from "../lib/auth";
-import { chatMark } from "./mark";
+import { Logo } from "./Logo";
 
 const appLinks: [string, string][] = [
   ["Dashboard", "/dashboard"],
   ["Assignments", "/assignments"],
-  ["Grading", "/grading"],
-  ["Assessment", "/assessment"],
-  ["Library", "/library"],
-  ["Messages", "/messages"],
+  ["Create", "/create"],
+  ["About", "/about"],
 ];
 
 const marketingLinks: [string, string][] = [
-  ["AI preview", "/#try"],
+  ["About", "/about"],
+  ["How it works", "/use"],
   ["Features", "/features"],
-  ["Why it's free", "/free"],
 ];
 
 function initials(name: string): string {
@@ -31,7 +29,7 @@ export async function Nav({ current }: { current?: string }) {
     <header className="topbar">
       <div className="container">
         <a className="wordmark" href={user ? "/dashboard" : "/"}>
-          {chatMark()}atom<span>edu</span>
+          <Logo compact />
         </a>
         <nav className="nav-links">
           {links.map(([label, href]) => (
@@ -48,7 +46,7 @@ export async function Nav({ current }: { current?: string }) {
           {user ? (
             <>
               <a className="btn btn-ink btn-sm" href="/create">
-                New assignment
+                Create
               </a>
               {user.isAdmin && (
                 <a className="textlink" href="/admin">
@@ -75,7 +73,7 @@ export async function Nav({ current }: { current?: string }) {
                 Sign in
               </a>
               <a className="btn btn-primary btn-sm" href="/login?mode=signup">
-                Get started free
+                Sign up
               </a>
             </>
           )}

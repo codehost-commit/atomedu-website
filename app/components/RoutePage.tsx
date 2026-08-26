@@ -1,4 +1,5 @@
 import { Nav } from "./Nav";
+import { Footer } from "./Footer";
 import { RouteList } from "./RouteList";
 import { requireUser } from "../lib/auth";
 
@@ -116,6 +117,7 @@ export async function RoutePage({ page }: { page: keyof typeof pageInfo }) {
           primary={info.primary}
         />
       </section>
+      <Footer />
     </main>
   );
 }

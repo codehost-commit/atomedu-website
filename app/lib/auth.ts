@@ -180,7 +180,7 @@ export async function getSessionUser(): Promise<SafeUser | null> {
     }
     return { id: row.uid, email: row.email, name: row.name, isAdmin: isAdminEmail(row.email) };
   } catch {
-    // DB not configured yet, etc. — treat as signed out rather than crashing pages.
+    // Treat missing database configuration as signed out instead of crashing pages.
     return null;
   }
 }

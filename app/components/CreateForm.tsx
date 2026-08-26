@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { WorksheetPreview } from "./MathText";
 
 const kinds = [
   "Worksheet",
@@ -98,29 +99,22 @@ export function CreateForm({
     setDownloading(true);
     setSaveMsg(null);
     try {
-      const res = await fetch("/api/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title || formTitle, content }),
-      });
-      if (res.status === 401) {
-        window.location.href = "/login?next=/create";
+      const paper = document.querySelector<HTMLElement>(".worksheet-paper");
+      const printWindow = window.open("", "_blank");
+      if (!paper || !printWindow) {
+        setSaveMsg("Allow pop-ups to save this PDF.");
         return;
       }
-      if (!res.ok) {
-        setSaveMsg("Couldn't download PDF.");
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(title || formTitle).replace(/[^a-z0-9]+/gi, "-") || "atom-edu-assignment"}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setSaveMsg("PDF downloaded.");
+      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title></title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css"><style>body{margin:0;background:#fff;color:#14231e;font-family:Arial,sans-serif}.worksheet-paper{margin:0 auto;max-width:7.2in;padding:.55in;font-size:11pt;line-height:1.55}.worksheet-line{margin:0 0 4pt;white-space:pre-wrap}.worksheet-gap{height:10pt}.worksheet-heading{font-weight:700;line-height:1.25;margin:0 0 8pt}.worksheet-heading-1{font-size:18pt;border-bottom:1px solid #9aa5a0;padding-bottom:10pt}.worksheet-heading-2{font-size:14pt;margin-top:14pt}.worksheet-heading-3{font-size:12pt;margin-top:10pt}.math-inline{display:inline-block}.math-display{display:block;margin:10pt 0;text-align:center}@page{size:letter;margin:.25in}@media print{.worksheet-paper{padding:0;max-width:none}}</style></head><body>${paper.outerHTML}</body></html>`);
+      printWindow.document.title = title || formTitle || "Atom Edu Assignment";
+      printWindow.document.close();
+      printWindow.addEventListener("load", () => {
+        window.setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+        }, 250);
+      }, { once: true });
+      setSaveMsg("Choose Save as PDF in the print window.");
     } finally {
       setDownloading(false);
     }
@@ -222,7 +216,7 @@ export function CreateForm({
                   <>
                     <button className="btn btn-ghost btn-sm" type="button" onClick={save}>Save</button>
                     <button className="btn btn-ink btn-sm" type="button" onClick={downloadPdf} disabled={downloading}>
-                      {downloading ? "Downloading..." : "Download PDF"}
+                      {downloading ? "Opening..." : "Save PDF"}
                     </button>
                   </>
                 ) : (
@@ -237,15 +231,15 @@ export function CreateForm({
               <label htmlFor="title">PDF title</label>
               <input id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
-            <article className="worksheet-paper">{content}</article>
+            <WorksheetPreview content={content} />
           </>
         ) : (
           <div className="empty-paper">
             <p className="kicker">Live PDF preview</p>
             <h3>Atom will generate the full paper here.</h3>
             <p>
-              Title, Name/Date/Period, directions, questions, answer key, LaTeX-formatted notation,
-              and precise diagram specs are included in the draft.
+              Title, Name/Date/Period, directions, questions, answer key, properly typeset notation,
+              and clear diagram instructions are included in the draft.
             </p>
           </div>
         )}

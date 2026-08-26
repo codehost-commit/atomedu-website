@@ -1,8 +1,6 @@
 "use client";
 import { useState } from "react";
 
-type Tab = "password" | "magic";
-
 export function AuthForm({
   next,
   startSignup = false,
@@ -10,15 +8,12 @@ export function AuthForm({
   next: string;
   startSignup?: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>("password");
   const [signup, setSignup] = useState(startSignup);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [devLink, setDevLink] = useState<string | null>(null);
 
   const dest = next && next.startsWith("/") ? next : "/";
 
@@ -38,43 +33,6 @@ export function AuthForm({
         return;
       }
       window.location.href = dest;
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitMagic(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-    setDevLink(null);
-    try {
-      const res = await fetch("/api/auth/magic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        devLink?: string;
-      };
-      if (!res.ok) {
-        setError(data.error ?? "Something went wrong.");
-        return;
-      }
-      if (data.devLink) {
-        setDevLink(data.devLink);
-        setInfo(
-          "Email isn't configured yet, so here's your one-time sign-in link (dev mode):",
-        );
-      } else {
-        setInfo(
-          "Check your email for a sign-in link. It expires in 15 minutes.",
-        );
-      }
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -106,120 +64,30 @@ export function AuthForm({
  `}</style>
 
       <h1>
-        {tab === "magic"
-          ? "Sign in with a link"
-          : signup
-            ? "Create your account"
-            : "Sign in"}
+        {signup ? "Create your account" : "Sign in"}
       </h1>
-      <p className="sub">Free forever. No credit card, no trial.</p>
-
-      <div className="auth-tabs">
-        <button
-          className={tab === "password" ? "on" : ""}
-          onClick={() => {
-            setTab("password");
-            setError(null);
-            setInfo(null);
-          }}
-          type="button"
-        >
-          Email &amp; password
-        </button>
-        <button
-          className={tab === "magic" ? "on" : ""}
-          onClick={() => {
-            setTab("magic");
-            setError(null);
-            setInfo(null);
-          }}
-          type="button"
-        >
-          Magic link
-        </button>
-      </div>
+      <p className="sub">Use your email and a password. No credit card needed.</p>
 
       {error && <p className="auth-msg err">{error}</p>}
-      {info && (
-        <p className="auth-msg ok">
-          {info}
-          {devLink && (
-            <a className="auth-devlink" href={devLink}>
-              {devLink}
-            </a>
-          )}
+      <form onSubmit={submitPassword}>
+        {signup && (
+          <>
+            <label htmlFor="name">Name (optional)</label>
+            <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+          </>
+        )}
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        <label htmlFor="password">Password</label>
+        <input id="password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={signup ? "new-password" : "current-password"} />
+        <button className="submit" type="submit" disabled={busy}>{busy ? "Please wait..." : signup ? "Create account" : "Sign in"}</button>
+        <p className="auth-toggle">
+          {signup ? "Already have an account? " : "New to Atom Edu? "}
+          <button type="button" onClick={() => { setSignup((v) => !v); setError(null); }}>
+            {signup ? "Sign in" : "Create one"}
+          </button>
         </p>
-      )}
-
-      {tab === "password" ? (
-        <form onSubmit={submitPassword}>
-          {signup && (
-            <>
-              <label htmlFor="name">Name (optional)</label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-              />
-            </>
-          )}
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={signup ? "new-password" : "current-password"}
-          />
-          <button className="submit" type="submit" disabled={busy}>
-            {busy ? "Please wait..." : signup ? "Create account" : "Sign in"}
-          </button>
-          <p className="auth-toggle">
-            {signup ? "Already have an account? " : "New to Atom Edu? "}
-            <button
-              type="button"
-              onClick={() => {
-                setSignup((v) => !v);
-                setError(null);
-              }}
-            >
-              {signup ? "Sign in" : "Create one"}
-            </button>
-          </p>
-        </form>
-      ) : (
-        <form onSubmit={submitMagic}>
-          <label htmlFor="memail">Email</label>
-          <input
-            id="memail"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-          <button className="submit" type="submit" disabled={busy}>
-            {busy ? "Sending..." : "Email me a sign-in link"}
-          </button>
-          <p className="auth-hint">
-            We&apos;ll email you a one-time link. No password needed, if you
-            don&apos;t have an account yet, one is created for you.
-          </p>
-        </form>
-      )}
+      </form>
     </div>
   );
 }

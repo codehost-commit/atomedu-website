@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../db";
 import { assignments } from "../../db/schema";
 import { ensureSchema } from "./auth";
@@ -30,6 +30,17 @@ export async function listAssignments(userId: string, limit = 50): Promise<Assig
     .orderBy(desc(assignments.createdAt))
     .limit(limit);
   return rows;
+}
+
+export async function getAssignment(userId: string, id: string): Promise<AssignmentRow | null> {
+  await ensureSchema();
+  const db = getDb();
+  const rows = await db
+    .select({ id: assignments.id, title: assignments.title, kind: assignments.kind, prompt: assignments.prompt, content: assignments.content, createdAt: assignments.createdAt })
+    .from(assignments)
+    .where(and(eq(assignments.id, id), eq(assignments.userId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function countAssignments(userId: string): Promise<number> {

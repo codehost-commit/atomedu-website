@@ -2,10 +2,9 @@ import { Footer } from "../components/Footer";
 import { Nav } from "../components/Nav";
 
 const EFFECTIVE_DATE = "August 25, 2026";
-// TODO: replace the bracketed placeholders below with your real details.
 const ENTITY = "Atom Edu";
 const CONTACT_EMAIL = "legal@atom-edu.org";
-const GOVERNING_LAW = "[your state/country of incorporation]";
+const GOVERNING_LAW = "the laws that apply where Atom Edu is organized";
 
 export default function LegalPage() {
   return (
@@ -32,7 +31,7 @@ export default function LegalPage() {
       <Nav current="" />
       <article className="legal">
         <p className="kicker">ATOM EDU · LEGAL</p>
-        <h1>Terms &amp; Privacy</h1>
+        <h1>Privacy, Terms &amp; Attributions</h1>
         <p className="effective">Effective {EFFECTIVE_DATE}</p>
 
         <nav className="toc" aria-label="On this page">
@@ -59,7 +58,7 @@ export default function LegalPage() {
           <p>
             The Service is intended for educators and school staff who are at
             least 18 years old and legally able to enter into these Terms. You
-            access the Service by signing in with your identity provider; you
+            access the Service with an email address and password; you
             are responsible for all activity under your account and for keeping
             your credentials secure.
           </p>
@@ -104,16 +103,19 @@ export default function LegalPage() {
             </li>
           </ul>
 
-          <h3>5. AI-assisted output and teacher control</h3>
+          <h3>5. Generated output and teacher control</h3>
           <p>
             The Service may generate drafts and suggestions to assist your work.
-            Such output can be inaccurate or incomplete.{" "}
+            Such output can be inaccurate, incomplete, biased, unsuitable for
+            a particular classroom, or inconsistent with current standards.{" "}
             <strong>
               Nothing is published, sent, returned, or scored without your
               explicit review and decision.
             </strong>{" "}
             You are solely responsible for any decision you make using the
-            Service.
+            Service, including review for accuracy, accessibility, safety,
+            copyright, age appropriateness, and compliance with school or
+            district requirements.
           </p>
 
           <h3>6. Intellectual property</h3>
@@ -133,7 +135,19 @@ export default function LegalPage() {
             liability, and indemnification) will continue to apply.
           </p>
 
-          <h3>8. Changes</h3>
+          <h3>8. No student personal information</h3>
+          <p>
+            Do not submit student names, student identification numbers,
+            contact information, health information, grades, disciplinary
+            records, individualized education program information, or other
+            directly identifiable student information unless you have written
+            authority to do so and an applicable written agreement with Atom
+            Edu that specifically permits that use. Use placeholders whenever
+            possible. You are responsible for deciding what information may be
+            entered into the Service.
+          </p>
+
+          <h3>9. Changes</h3>
           <p>
             We may modify the Service or these Terms. If we make material
             changes, we will update the effective date above and, where
@@ -141,7 +155,7 @@ export default function LegalPage() {
             changes take effect constitutes acceptance.
           </p>
 
-          <h3>9. Governing law</h3>
+          <h3>10. Governing law</h3>
           <p>
             These Terms are governed by the laws of {GOVERNING_LAW}, without
             regard to its conflict-of-laws rules. The courts located in that
@@ -181,8 +195,8 @@ export default function LegalPage() {
             We use information to provide, secure, maintain, and improve the
             Service; to authenticate users; to communicate with you about the
             Service; and to comply with legal obligations. We do not sell your
-            personal information, and we do not use Your Content to serve
-            advertising.
+            personal information, serve advertising with Your Content, or use
+            Your Content to train general-purpose models.
           </p>
 
           <h3>How information is shared</h3>
@@ -259,6 +273,14 @@ export default function LegalPage() {
             so some of the above may not apply to you. Nothing in these Terms
             limits liability that cannot be limited under applicable law.
           </p>
+          <p>
+            You agree that any claim arising from or relating to the Service
+            must be brought within one year after the claim arose, unless a
+            longer period is required by applicable law. You agree to bring a
+            claim only on an individual basis and not as a plaintiff or class
+            member in any class, consolidated, or representative action, to the
+            extent permitted by law.
+          </p>
           <h3>Indemnification</h3>
           <p>
             You agree to indemnify and hold harmless {ENTITY} and its officers,
@@ -273,9 +295,10 @@ export default function LegalPage() {
           <h2>Attributions</h2>
           <p>
             The Atom Edu logo displayed on this site was supplied by the site
-            owner. Typography is served through Google Fonts (DM Sans and DM
-            Mono). Product and company names referenced on this site may be
-            trademarks of their respective owners.
+            owner. Mathematics is typeset with KaTeX. Typography is served
+            through Google Fonts (DM Sans and DM Mono). Product and company
+            names referenced on this site may be trademarks of their respective
+            owners.
           </p>
         </section>
 

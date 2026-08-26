@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+@import "katex/dist/katex.min.css";
 @import "tailwindcss";
 
 /* ============================ tokens ============================ */
@@ -72,8 +73,14 @@ h3{font-size:20px;letter-spacing:0;margin:0;font-weight:650}
 .topbar{position:sticky;top:0;z-index:40;height:68px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 90%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center}
 .topbar .container{display:flex;align-items:center;gap:34px;width:100%}
 .wordmark{display:inline-flex;align-items:center;gap:9px;font-size:22px;font-weight:700;letter-spacing:0;color:var(--ink);text-decoration:none;flex:none}
-.logo-mark{width:26px;height:26px;display:inline-block;flex:none;background:var(--blue);mask:url("/atom-mark.svg") center/contain no-repeat;-webkit-mask:url("/atom-mark.svg") center/contain no-repeat}
-.wordmark span{color:var(--blue);font-weight:500}
+.atom-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.atom-logo-crop{display:block;width:39px;height:39px;overflow:hidden;position:relative;border-radius:8px;flex:none}
+.atom-logo-crop img{width:132px;height:132px;max-width:none;position:absolute;left:-46px;top:-40px;mix-blend-mode:multiply}
+.atom-logo-dark .atom-logo-crop{background:#030413}
+.atom-logo-dark .atom-logo-crop img{mix-blend-mode:normal}
+.atom-logo-name{font-size:20px;font-weight:700;line-height:1;letter-spacing:0}
+.atom-logo-compact .atom-logo-crop{width:31px;height:31px;border-radius:6px}
+.atom-logo-compact .atom-logo-crop img{width:106px;height:106px;left:-37px;top:-32px}
 .nav-links{display:flex;gap:6px;flex:1}
 .nav-links a{color:#5c655f;text-decoration:none;font:500 13px "DM Sans";padding:9px 12px;border-bottom:2px solid transparent}
 .nav-links a:hover{color:var(--ink)}
@@ -140,7 +147,14 @@ h3{font-size:20px;letter-spacing:0;margin:0;font-weight:650}
 .output-toolbar .kicker{margin:0 0 4px}
 .toolbar-note{font-size:12px;color:var(--muted);margin:0}
 .toolbar-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.worksheet-paper{white-space:pre-wrap;border:1px solid #cfdad5;background:#fff;min-height:520px;max-height:76vh;overflow:auto;padding:34px 38px;font-size:14px;line-height:1.65;color:#1b2924;box-shadow:inset 0 0 0 10px #fafcfb}
+.worksheet-paper{border:1px solid #cfdad5;background:#fff;min-height:520px;max-height:76vh;overflow:auto;padding:34px 38px;font-size:14px;line-height:1.65;color:#1b2924;box-shadow:inset 0 0 0 10px #fafcfb}
+.worksheet-line{margin:0 0 5px;white-space:pre-wrap}
+.worksheet-gap{height:12px}
+.worksheet-heading{font-weight:700;line-height:1.25;margin:0 0 10px}
+.worksheet-heading-1{font-size:23px;border-bottom:1px solid #b7c5bf;padding-bottom:12px}
+.worksheet-heading-2{font-size:17px;margin-top:16px}
+.worksheet-heading-3{font-size:15px;margin-top:12px}
+.math-inline{display:inline-block;vertical-align:baseline}.math-display{display:block;margin:12px 0;text-align:center}.katex{font-size:1.04em}
 .empty-paper{min-height:470px;display:flex;flex-direction:column;justify-content:center;border:1px dashed #b9c8c1;background:#fafdff;padding:34px}
 .empty-paper h3{font-size:28px;max-width:18ch;margin-bottom:12px}
 .empty-paper p{max-width:42ch;color:var(--muted);margin:0}
@@ -196,14 +210,24 @@ h3{font-size:20px;letter-spacing:0;margin:0;font-weight:650}
 .page-head .lead{margin-top:20px;max-width:60ch}
 
 /* ============================ footer ============================ */
-.site-footer{border-top:1px solid var(--line);padding:38px 28px 52px;max-width:1180px;margin:60px auto 0;display:grid;grid-template-columns:1.2fr 1fr 1fr;align-items:start;gap:28px}
-.footer-brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:600;color:var(--ink);letter-spacing:0}
-.footer-brand .logo-mark{width:28px;height:28px}
-.footer-brand span{color:var(--blue);font-weight:500}
-.site-footer .fcol b{display:block;font:500 10px "DM Mono";letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
-.site-footer .fcol a{display:block;font-size:13px;color:var(--ink-soft);text-decoration:none;padding:4px 0}
-.site-footer .fcol a:hover{color:var(--ink)}
-.site-footer .ftag{grid-column:1/-1;border-top:1px solid var(--line);padding-top:20px;margin-top:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.footer-shell{max-width:1240px;margin:76px auto 16px;padding:0 16px}
+.site-footer{overflow:hidden;background:#030413;color:#f5f4ee;border-radius:34px;padding:48px 46px 26px;box-shadow:0 22px 62px rgba(5,13,20,.18)}
+.footer-grid{display:grid;grid-template-columns:1.45fr repeat(3,.7fr);gap:32px}
+.footer-brand-block>a{display:inline-flex;text-decoration:none}.footer-brand-block .atom-logo-name{color:#f5f4ee}.footer-brand-block p{max-width:30ch;color:#aab2bf;font-size:13px;line-height:1.6;margin:18px 0 0}
+.footer-column b{display:block;color:#8ebcf6;font:500 10px "DM Mono";letter-spacing:1px;text-transform:uppercase;margin-bottom:13px}.footer-column a{display:block;color:#c1c9d3;font-size:13px;text-decoration:none;padding:4px 0}.footer-column a:hover{color:#fff}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.12);margin-top:42px;padding-top:22px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:#8792a1;font-size:12px}.footer-bottom a{color:#b7c2d0;text-decoration:none}.footer-bottom a:hover{color:#fff}
+
+/* ============================ home ============================ */
+.home-hero{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#f7faf8 0%,#eaf3ef 100%)}
+.home-hero-grid{min-height:calc(100vh - 68px);display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.78fr);align-items:center;gap:68px;padding-top:56px;padding-bottom:64px}.home-copy h1{max-width:12ch;margin-bottom:24px}.home-copy .lead{max-width:48ch}
+.home-sheet{width:min(100%,450px);justify-self:end;background:#fff;border:1px solid #c7d5cf;box-shadow:0 24px 56px rgba(20,35,30,.14);transform:rotate(1.4deg)}.home-sheet-top{height:48px;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #d8e0dc;background:#f5f8f6}.home-sheet-top>span{font:500 10px "DM Mono";text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}.home-sheet-body{padding:26px 30px 28px}.home-sheet-body h2{font-size:25px;margin:0 0 10px}.student-line{font:500 9px "DM Mono";color:#58615b;border-bottom:1px solid #b7c5bf;padding-bottom:12px}.sheet-directions{font-size:11px;margin:14px 0}.sheet-question{font-size:12px;margin-top:16px}.sheet-question p{margin:5px 0}.sheet-options{margin:7px 0 0;padding-left:25px;display:grid;gap:2px}.sheet-math{font-family:"Times New Roman",serif;font-size:1.1em}.sheet-answer-lines{display:grid;gap:13px;margin-top:12px}.sheet-answer-lines i{display:block;border-bottom:1px solid #c6d0cb}.sheet-chart{height:110px;margin-top:20px;position:relative;border-left:2px solid #344b42;border-bottom:2px solid #344b42;background:linear-gradient(#e8efeb 1px,transparent 1px),linear-gradient(90deg,#e8efeb 1px,transparent 1px);background-size:42px 27px}.sheet-chart i{position:absolute;width:68%;height:52%;left:18%;bottom:20%;border-left:3px solid #2258ef;border-bottom:3px solid #2258ef;border-radius:0 0 90% 0;transform:skewX(-22deg)}.sheet-chart span,.sheet-chart strong{position:absolute;font:500 9px "DM Mono";color:#44554c}.sheet-chart span{top:5px;left:7px}.sheet-chart strong{right:7px;bottom:5px}
+.home-commitment{background:#14231e;color:#f6faf8;padding:76px 0}.commitment-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:end}.home-commitment .kicker{color:#aac2b4}.commitment-grid h2{max-width:18ch}.commitment-grid>p{max-width:46ch;margin:0;color:#d2ddd6;font-size:17px;line-height:1.6}
+
+/* ============================ about and use ============================ */
+.about-hero{padding-top:82px;padding-bottom:68px;border-bottom:1px solid var(--line-strong)}.about-hero>.atom-logo{margin-bottom:26px}.about-hero h1{max-width:13ch}.about-hero .lead{margin-top:24px;max-width:54ch}.about-copy{display:grid;grid-template-columns:repeat(3,1fr);gap:48px}.about-copy h2{font-size:25px;margin-bottom:12px}.about-copy p{margin:0;color:var(--ink-soft);font-size:15px;line-height:1.65}.use-steps{border-top:1px solid var(--ink)}.use-steps article{display:grid;grid-template-columns:54px minmax(0,1fr);gap:22px;padding:26px 0;border-bottom:1px solid var(--line)}.use-steps span{font:500 14px "DM Mono";color:var(--blue)}.use-steps h2{font-size:25px}.use-steps p{max-width:60ch;margin:7px 0 0;color:var(--muted);font-size:15px}
+
+/* ============================ assignments ============================ */
+.assignments-head,.assignment-detail-head{display:flex;justify-content:space-between;align-items:end;gap:28px}.assignments-head .lead{margin:14px 0 0}.assignments-empty{border:1px dashed #b9c8c1;background:#fbfdfc;text-align:center;padding:72px 28px}.assignments-empty h2{font-size:28px}.assignments-empty p{color:var(--muted);margin:10px auto 22px}.assignment-list{border-top:1px solid var(--ink)}.assignment-row{display:flex;justify-content:space-between;gap:26px;align-items:center;padding:23px 0;border-bottom:1px solid var(--line);text-decoration:none}.assignment-row h2{font-size:21px}.assignment-row p{max-width:64ch;margin:5px 0 0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.assignment-row:hover h2{text-decoration:underline;text-decoration-color:var(--blue);text-underline-offset:4px}.assignment-meta{display:grid;gap:3px;flex:none;text-align:right;font:500 10px "DM Mono";color:var(--muted);text-transform:uppercase}.back-link{display:inline-block;margin:0 0 20px;color:var(--blue);font-size:13px;font-weight:600;text-decoration:none}.back-link:hover{text-decoration:underline}.assignment-detail-paper{max-width:920px}.assignment-detail-paper .worksheet-paper{max-height:none;min-height:680px}
 
 /* ============================ responsive ============================ */
 @media(max-width:860px){
@@ -225,5 +249,5 @@ h3{font-size:20px;letter-spacing:0;margin:0;font-weight:650}
   .nav-links a{white-space:nowrap;padding:9px 8px}
   .nav-right .uname{display:none}
   .hero-cta .btn{flex:1;justify-content:center}
-  .site-footer{grid-template-columns:1fr 1fr;gap:22px}
+  .home-hero-grid,.commitment-grid,.about-copy{grid-template-columns:1fr;gap:32px}.home-hero-grid{min-height:auto}.home-copy h1{max-width:none}.home-sheet{justify-self:center;transform:none}.footer-grid{grid-template-columns:1fr 1fr}.footer-brand-block{grid-column:1/-1}.site-footer{padding:38px 26px 24px;border-radius:26px}.assignments-head,.assignment-detail-head{align-items:flex-start;flex-direction:column}.assignment-row{align-items:flex-start;flex-direction:column}.assignment-meta{text-align:left}
 }

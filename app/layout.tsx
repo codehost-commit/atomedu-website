@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   description:
     "Draft assignments, assessments, and feedback, then approve. Free forever for every teacher.",
   icons: {
-    icon: "/atom-mark.svg",
-    shortcut: "/atom-mark.svg",
-    apple: "/atom-mark.svg",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
