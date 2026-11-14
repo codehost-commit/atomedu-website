@@ -1,35 +1,215 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atom Edu | Free assignment tools for teachers</title>
-    <meta name="description" content="Atom Edu helps teachers make, save, and download printable assignments for free." />
-    <link rel="icon" href="public/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <style>
-      :root { --ink:#14231e; --paper:#f7faf8; --line:#d7e0dc; --muted:#65716a; --blue:#2258ef; --navy:#030413; }
-      * { box-sizing:border-box; } body { margin:0; font-family:"DM Sans",Arial,sans-serif; background:var(--paper); color:var(--ink); line-height:1.55; } a { color:inherit; } .wrap { width:min(1160px,calc(100% - 40px)); margin:auto; }
-      header { height:70px; display:flex; align-items:center; border-bottom:1px solid var(--line); background:rgba(247,250,248,.94); position:sticky; top:0; z-index:2; backdrop-filter:blur(12px); } .nav { display:flex; width:100%; align-items:center; justify-content:space-between; gap:20px; } .brand { display:flex; align-items:center; gap:10px; text-decoration:none; font-weight:700; font-size:19px; }
-      .mark { width:34px; height:34px; overflow:hidden; position:relative; border-radius:7px; } .mark img { width:115px; height:115px; max-width:none; position:absolute; left:-40px; top:-35px; mix-blend-mode:multiply; } .links { display:flex; align-items:center; gap:18px; font-size:13px; font-weight:600; } .links a { text-decoration:none; } .button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:0 16px; border:1px solid var(--ink); font-size:13px; font-weight:700; text-decoration:none; } .button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
-      .hero { min-height:calc(100vh - 70px); display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,.8fr); align-items:center; gap:68px; padding:54px 0 64px; } .eyebrow { font:500 10px "DM Mono",monospace; letter-spacing:1.3px; text-transform:uppercase; color:var(--muted); margin:0 0 16px; } h1 { max-width:12ch; margin:0; font-size:clamp(48px,7vw,84px); line-height:.96; letter-spacing:0; } h2 { margin:0; font-size:clamp(30px,4vw,48px); line-height:1.04; } .lead { max-width:51ch; margin:24px 0 0; color:#46524c; font-size:18px; } .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; } .note { margin:14px 0 0; color:var(--muted); font-size:12px; }
-      .sheet { background:#fff; border:1px solid #c7d5cf; box-shadow:0 24px 56px rgba(20,35,30,.14); transform:rotate(1.4deg); } .sheet-top { height:48px; padding:9px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:#f5f8f6; } .sheet-top .mark { width:28px; height:28px; } .sheet-top .mark img { width:96px; height:96px; left:-34px; top:-29px; } .sheet-top span { color:var(--muted); font:500 10px "DM Mono",monospace; text-transform:uppercase; } .sheet-body { padding:26px 30px; } .sheet-body h2 { font-size:25px; } .student { border-bottom:1px solid #b7c5bf; padding:10px 0; color:var(--muted); font:500 9px "DM Mono",monospace; } .question { margin-top:15px; font-size:12px; } .question p { margin:5px 0; } ol { margin:7px 0 0; padding-left:26px; display:grid; gap:2px; } .math { font-family:"Times New Roman",serif; font-size:1.1em; } .lines { display:grid; gap:12px; margin-top:12px; } .lines i { border-bottom:1px solid #c6d0cb; } .chart { height:100px; margin-top:19px; position:relative; border-left:2px solid #344b42; border-bottom:2px solid #344b42; background:linear-gradient(#e8efeb 1px,transparent 1px),linear-gradient(90deg,#e8efeb 1px,transparent 1px); background-size:40px 25px; } .chart:after { content:""; position:absolute; width:68%; height:52%; left:18%; bottom:20%; border-left:3px solid var(--blue); border-bottom:3px solid var(--blue); border-radius:0 0 90% 0; transform:skewX(-22deg); }
-      .section { padding:88px 0; } .section-head { max-width:62ch; margin-bottom:38px; } .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); } .cell { background:#fff; padding:28px 25px; } .num { color:var(--blue); font:500 10px "DM Mono",monospace; margin-bottom:15px; } h3 { margin:0; font-size:20px; } .cell p { color:var(--muted); font-size:14px; margin:9px 0 0; }
-      .commitment { background:var(--ink); color:#fff; padding:74px 0; } .commitment .inside { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:end; } .commitment .eyebrow { color:#adbdaf; } .commitment p:last-child { margin:0; max-width:46ch; color:#d3ddd6; font-size:17px; }
-      footer { width:min(1240px,calc(100% - 32px)); margin:76px auto 16px; background:var(--navy); color:#f5f4ee; border-radius:34px; padding:48px 46px 26px; box-shadow:0 22px 62px rgba(5,13,20,.18); } .footer-grid { display:grid; grid-template-columns:1.45fr repeat(3,.7fr); gap:32px; } .footer-brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:19px; } .footer-brand .mark { background:var(--navy); } .footer-brand .mark img { mix-blend-mode:normal; content:url("public/atom-logo-black-bg.png"); } .footer-brand p { color:#aab2bf; font-size:13px; max-width:30ch; margin:18px 0 0; } .footer-column b { display:block; color:#8ebcf6; font:500 10px "DM Mono",monospace; letter-spacing:1px; text-transform:uppercase; margin-bottom:13px; } .footer-column a { display:block; color:#c1c9d3; font-size:13px; padding:4px 0; text-decoration:none; } .footer-bottom { margin-top:42px; padding-top:22px; border-top:1px solid rgba(255,255,255,.12); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; color:#8792a1; font-size:12px; } .footer-bottom a { color:#b7c2d0; text-decoration:none; }
-      @media (max-width:850px) { .hero,.commitment .inside { grid-template-columns:1fr; gap:35px; } .hero { min-height:auto; padding:70px 0; } h1 { max-width:none; } .sheet { width:min(450px,100%); justify-self:center; transform:none; } .grid { grid-template-columns:1fr; } .footer-grid { grid-template-columns:1fr 1fr; } .footer-brand-wrap { grid-column:1/-1; } footer { padding:38px 26px 24px; border-radius:26px; } }
-      @media (max-width:620px) { .links a:not(.button) { display:none; } .wrap { width:min(100% - 28px,1160px); } .actions .button { flex:1; } }
-    </style>
-  </head>
-  <body>
-    <header><nav class="wrap nav" aria-label="Main navigation"><a class="brand" href="/"><span class="mark"><img src="public/atom-logo-white-bg.png" alt="" /></span>Atom Edu</a><div class="links"><a href="/about">About</a><a href="/use">How it works</a><a href="/login">Sign in</a><a class="button primary" href="/login?mode=signup">Sign up</a></div></nav></header>
-    <main>
-      <section class="wrap hero"><div><p class="eyebrow">Free tools for teachers</p><h1>Make the next assignment without starting from scratch.</h1><p class="lead">Tell Atom what your class needs. It prepares a printable draft with questions, answer key, student details, and readable STEM notation.</p><div class="actions"><a class="button primary" href="/login?mode=signup">Create an account</a><a class="button" href="/use">See how it works</a></div><p class="note">Free for teachers. No trial and no credit card.</p></div><div class="sheet" aria-label="Example Atom Edu worksheet"><div class="sheet-top"><span class="mark"><img src="public/atom-logo-white-bg.png" alt="" /></span><span>Student copy</span></div><div class="sheet-body"><h2>Rate of Change</h2><div class="student">Name __________________ Date __________ Period _____</div><div class="question"><b>1. (1 point) Multiple choice</b><p>Which expression is the derivative of <span class="math">f(x) = 3x² - 4x + 1</span>?</p><ol><li>6x - 4</li><li>3x - 4</li><li>x³ - 2x² + x</li><li>6x + 4</li></ol></div><div class="question"><b>2. (2 points) Short answer</b><p>Evaluate <span class="math">∫(2x + 3) dx</span>.</p><div class="lines"><i></i><i></i></div></div><div class="chart"></div></div></div></section>
-      <section class="wrap section"><div class="section-head"><p class="eyebrow">Built for the real task</p><h2>From a class goal to a ready-to-print PDF.</h2></div><div class="grid"><article class="cell"><div class="num">01</div><h3>Set the brief</h3><p>Choose the class, topic, question types, difficulty, and diagrams you need.</p></article><article class="cell"><div class="num">02</div><h3>Review the draft</h3><p>Check every question and answer before it reaches your students.</p></article><article class="cell"><div class="num">03</div><h3>Download the PDF</h3><p>Save assignments to your account and download a student-ready paper.</p></article></div></section>
-      <section class="commitment"><div class="wrap inside"><div><p class="eyebrow">The commitment</p><h2>Teacher tools should not take a teacher budget.</h2></div><p>Atom Edu is free for teachers. We do not sell classroom work or put ads in the product. You remain responsible for reviewing every assignment before use.</p></div></section>
-    </main>
-    <footer><div class="footer-grid"><div class="footer-brand-wrap"><div class="footer-brand"><span class="mark"><img src="public/atom-logo-black-bg.png" alt="" /></span>Atom Edu</div><p>Free assignment tools for teachers. Your classroom materials stay yours.</p></div><div class="footer-column"><b>Account</b><a href="/login?mode=signup">Sign up</a><a href="/login">Sign in</a><a href="/use">Use Atom</a></div><div class="footer-column"><b>Atom</b><a href="/about">About</a><a href="/features">Features</a><a href="/free">Why it is free</a></div><div class="footer-column"><b>Legal</b><a href="/legal#privacy">Privacy</a><a href="/legal#terms">Terms</a><a href="/legal#attributions">Attributions</a></div></div><div class="footer-bottom"><span>© 2026 Atom Edu. All rights reserved.</span><a href="/legal">Legal information</a></div></footer>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proof Lab | Free Math Proof Checker | atomEDU</title>
+  <meta name="description" content="Solve supported algebra and geometry problems, check your steps with Ghost steps, generate practice, and graph functions in the free Proof Lab." />
+  <link rel="icon" href="images/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@1,9..144,400;0,9..144,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=proof-lab-2" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="mark" src="images/logo.svg" alt="" />
+        <span class="word">atom<b>EDU</b></span>
+      </a>
+      <nav class="nav">
+        <a data-nav="index.html" href="index.html">Home</a>
+        <a data-nav="features.html" href="features.html">Features</a>
+        <a data-nav="learn.html" href="learn.html">Learn</a>
+        <a data-nav="proof-lab.html" href="proof-lab.html">Proof Lab</a>
+        <a data-nav="about.html" href="about.html">About</a>
+        <a data-nav="contact.html" href="contact.html">Contact</a>
+        <a class="cta" href="proof-lab.html">Start math</a>
+      </nav>
+      <button class="menu-btn" aria-label="Menu">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+    <div class="mobile-nav">
+      <div class="inner">
+        <a data-nav="index.html" href="index.html">Home</a>
+        <a data-nav="features.html" href="features.html">Features</a>
+        <a data-nav="learn.html" href="learn.html">Learn</a>
+        <a data-nav="proof-lab.html" href="proof-lab.html">Proof Lab</a>
+        <a data-nav="about.html" href="about.html">About</a>
+        <a data-nav="contact.html" href="contact.html">Contact</a>
+        <a class="cta" href="proof-lab.html">Start math</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+  <!-- Hero board -->
+  <section class="board" aria-label="Featured">
+    <article class="slide is-active" data-credit="Graph made in Desmos. Screenshot by Awasthi, Nov 11 2026.">
+      <div class="slide-bg" style="background-image:url('images/bg1.png')"></div>
+      <div class="slide-scrim"></div>
+      <div class="slide-content"><div class="inner">
+        <p class="slide-label">Proof Lab</p>
+        <h1 class="slide-title heading-display">Math is clearer when the steps hold up.</h1>
+        <p class="slide-sub">Enter a problem, follow the solution, and see the rule behind each step. Free, in your browser.</p>
+        <div class="slide-actions">
+          <a class="btn btn-accent" href="proof-lab.html">Start math</a>
+          <a class="btn btn-light" href="features.html">See how it works</a>
+        </div>
+      </div></div>
+    </article>
+
+    <article class="slide" data-credit="Polar graph made in Desmos. Screenshot by Awasthi, Nov 11 2026.">
+      <div class="slide-bg" style="background-image:linear-gradient(120deg,rgba(20,27,35,.35),rgba(31,42,54,.15)),url('images/bg1.png');background-position:60% center"></div>
+      <div class="slide-scrim"></div>
+      <div class="slide-content"><div class="inner">
+        <p class="slide-label">Check your work</p>
+        <h1 class="slide-title heading-display">Find the step that changed the answer.</h1>
+        <p class="slide-sub">Write your own solution. Proof Lab checks supported transitions and shows Ghost steps when you skip reasoning.</p>
+        <div class="slide-actions">
+          <a class="btn btn-accent" href="proof-lab.html">Check my work</a>
+          <a class="btn btn-light" href="features.html">See the features</a>
+        </div>
+      </div></div>
+    </article>
+
+    <article class="slide" data-credit="Polar graph made in Desmos. Screenshot by Awasthi, Nov 11 2026.">
+      <div class="slide-bg" style="background-image:linear-gradient(120deg,rgba(20,27,35,.45),rgba(31,42,54,.2)),url('images/bg1.png');background-position:right center"></div>
+      <div class="slide-scrim"></div>
+      <div class="slide-content"><div class="inner">
+        <p class="slide-label">Explore the graph</p>
+        <h1 class="slide-title heading-display">See the curve. Verify the proof.</h1>
+        <p class="slide-sub">Pan, zoom, and compare functions. A graph helps you explore; the math engine checks the reasoning.</p>
+        <div class="slide-actions">
+          <a class="btn btn-accent" href="proof-lab.html">Open Proof Lab</a>
+        </div>
+      </div></div>
+    </article>
+
+    <div class="board-edge left"><button class="arrow" aria-label="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+    <div class="board-edge right"><button class="arrow" aria-label="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button></div>
+
+    <div class="board-dots">
+      <button class="on" aria-label="Slide 1"></button>
+      <button aria-label="Slide 2"></button>
+      <button aria-label="Slide 3"></button>
+    </div>
+
+    <div class="board-foot">
+      <span class="board-credit">Graph made in Desmos. Screenshot by Awasthi, Nov 11 2026.</span>
+      <button class="board-info" aria-label="Image credits">i</button>
+    </div>
+
+    <div class="board-attrib" hidden>
+      <h3>Image credits</h3>
+      <p>All three slides use a polar graph made in Desmos. Screenshot by Awasthi, accessed Nov 11 2026.</p>
+      <p><a href="legal.html#attributions">Full attributions</a></p>
+    </div>
+  </section>
+
+  <!-- What it is -->
+  <section class="section">
+    <div class="wrap col">
+      <p class="kicker">What it is</p>
+      <h2 class="block-title heading-display">A proof tool built for math</h2>
+      <div class="prose" style="margin-top:1rem">
+        <p>Proof Lab is for working through supported math problems and checking the reasoning, not just displaying an answer. Its own rule-based engine handles the math locally in your browser.</p>
+        <p>Type a problem with the visual math editor, inspect a worked solution, or submit your own steps. The tool distinguishes a verified result from a partial or unsupported one.</p>
+      </div>
+      <div class="free-note" style="margin-top:1.5rem"><b>Free</b> <span>No account, API key, or paid tier is needed to use Proof Lab.</span></div>
+    </div>
+  </section>
+
+  <!-- Proof Lab workflow -->
+  <section class="section band">
+    <div class="wrap col">
+      <p class="kicker">How it works</p>
+      <h2 class="block-title heading-display">Four ways into the same math</h2>
+      <div class="prose" style="margin-top:1rem">
+        <p><b>Solve</b> works through a supported problem and shows the steps. <b>Check work</b> inspects your own line-by-line solution and can reveal skipped Ghost steps. <b>Generate</b> makes new practice problems by topic and difficulty. <b>Graph</b> lets you explore functions visually with pan and zoom.</p>
+        <p>The graph is for exploration, not proof. Exact verification comes from the rule engine, and unsupported cases are labeled instead of guessed.</p>
+      </div>
+      <a class="textlink" href="features.html" style="margin-top:1.3rem;display:inline-flex">See what Proof Lab can do
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- Coverage -->
+  <section class="section">
+    <div class="wrap col">
+      <p class="kicker">Coverage</p>
+      <h2 class="block-title heading-display">What it checks today</h2>
+      <p class="classes"><span class="now">Selected Algebra 1, Algebra 2, and geometry families are supported.</span> That includes equations, inequalities, functions, systems, conics, coordinate geometry, measurements, and explicit-premise geometry proofs. Coverage is rule-by-rule, not a promise to solve every textbook problem. Proof Lab lists its supported topics inside the tool.</p>
+      <a class="textlink" href="proof-lab.html#coverage" style="margin-top:1.3rem;display:inline-flex">See current coverage →</a>
+    </div>
+  </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-shell">
+      <div class="footer-card">
+        <div class="footer-banner">
+          <img class="bg" src="images/footer.svg" alt="" />
+          <div class="shade"></div>
+          <div class="content">
+            <h2 class="heading-display">Bring the math. Show the proof.</h2>
+            <p>Solve a problem, check your own steps, or generate a new one. Proof Lab is free and runs in your browser.</p>
+            <div class="actions">
+              <a class="btn btn-accent" href="proof-lab.html">Start math</a>
+              <a class="btn btn-light" href="features.html">See the features</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <div class="brand" style="margin-bottom:0.3rem">
+              <img class="mark" src="images/logo.svg" alt="" style="width:32px;height:32px" />
+              <span class="word" style="color:#f1ece4">atom<b>EDU</b></span>
+            </div>
+            <p class="about">A free math proof tool for working through problems, checking reasoning, and seeing where a step goes wrong.</p>
+          </div>
+          <div>
+            <h4>Product</h4>
+            <ul>
+              <li><a href="proof-lab.html">Proof Lab</a></li>
+              <li><a href="features.html">Features</a></li>
+              <li><a href="learn.html">How it works</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Company</h4>
+            <ul>
+              <li><a href="about.html">About</a></li>
+              <li><a href="contact.html">Contact</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Legal</h4>
+            <ul>
+              <li><a href="legal.html#privacy">Privacy</a></li>
+              <li><a href="legal.html#terms">Terms</a></li>
+              <li><a href="legal.html#attributions">Attributions</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <div>
+            <div class="footer-site">atom-edu.org</div>
+            <span>&copy; <span id="yr"></span> atomEDU. Free for students.</span>
+          </div>
+          <span>Maintained by Avuthu, Awasthi, Patel, and Sanikommu.</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
 </html>
