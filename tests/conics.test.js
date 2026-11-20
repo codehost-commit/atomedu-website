@@ -219,11 +219,82 @@ test('custom variables, coordinate order, and rational constant coefficients are
   assert.equal(checked('(x^2+y^2)/(2/3)=6', 'circle').answer.radiusSquared, '4');
 });
 
-test('rotation, higher total degree, extra variables and nonrational coefficients are unsupported', () => {
-  for (const equation of ['x^2+xy+y^2=1', 'x*y=1', 'x^3+y^2=0', 'x^2*y^2=1',
-    '(x+y)^2=1', 'x^2+y^2+z=1', 'x^2+y^2+z-z=1', 'sqrt(2)*x^2+y^2=1',
+test('higher total degree, extra variables and nonrational coefficients are unsupported', () => {
+  for (const equation of ['x^3+y^2=0', 'x^2*y^2=1',
+    'x^2+y^2+z=1', 'x^2+y^2+z-z=1', 'sqrt(2)*x^2+y^2=1',
     'sin(x)+y^2=1', 'pi*x^2+y^2=1', 'x^2+e*y^2=1', 'x^2+i*y^2=1', 'x^(1/2)+y^2=1',
     'x^33+y^2=1', 'x^y+y^2=1']) rejected(request(equation));
+});
+
+test('rational symmetric diagonalization classifies rotated ellipses and verifies geometry', () => {
+  const result = checked('x^2+x*y+y^2=1', 'ellipse'), answer = result.answer;
+  assert.equal(answer.orientation, 'rotated');
+  assert.deepEqual(answer.diagonalization.matrix, [['1', '1/2'], ['1/2', '1']]);
+  assert.deepEqual(answer.diagonalization.eigenvalues, ['3/2', '1/2']);
+  assert.deepEqual(answer.diagonalization.directions, [['1', '1'], ['-1', '1']]);
+  assert.equal(answer.diagonalization.normSquared, '2');
+  assert.deepEqual(answer.semiaxesSquared, ['2/3', '2']);
+  assert.equal(answer.focalDistanceSquared, '4/3');
+  assert.deepEqual(answer.vertices, [['1', '-1'], ['-1', '1']]);
+  for (const [x, y] of answer.vertices)
+    assert.ok(pEvaluate(residual('x^2+x*y+y^2=1'), { x: Q(x), y: Q(y) }).zero);
+  assert.deepEqual(answer.covertices, [
+    ['-sqrt(1/3)', '-sqrt(1/3)'], ['sqrt(1/3)', 'sqrt(1/3)']]);
+  const translated = checked('(x-2)^2+(x-2)*(y+1)+(y+1)^2=1', 'ellipse').answer;
+  assert.deepEqual(translated.center, ['2', '-1']);
+  assert.deepEqual(translated.vertices, [['3', '-2'], ['1', '0']]);
+  const oblique = checked('61x^2+96xy+89y^2=25', 'ellipse').answer;
+  assert.deepEqual(oblique.diagonalization.directions, [['3', '4'], ['-4', '3']]);
+  assert.deepEqual(oblique.diagonalization.eigenvalues, ['125', '25']);
+  assert.deepEqual(oblique.semiaxesSquared, ['1/5', '1']);
+  assert.deepEqual(checked('5x^2+6xy+5y^2=8', 'ellipse').answer.semiaxesSquared, ['1', '4']);
+  assert.equal(checked('x^2+x*y+y^2=-1', 'empty').answer.family, 'ellipse');
+  assert.deepEqual(checked('x^2+x*y+y^2=0', 'point').answer.point, ['0', '0']);
+});
+
+test('rotated hyperbolas and line degeneracies retain exact original-variable equations', () => {
+  const answer = checked('x*y=1', 'hyperbola').answer;
+  assert.equal(answer.transverseSemiAxisSquared, '2');
+  assert.equal(answer.conjugateSemiAxisSquared, '2');
+  assert.deepEqual(answer.vertices, [['-1', '-1'], ['1', '1']]);
+  assert.deepEqual(answer.asymptotes, [
+    '(-x + y) = (1)*(x + y)', '(-x + y) = (-1)*(x + y)']);
+  const lines = checked('x*y=0', 'intersecting_lines').answer;
+  assert.equal(lines.lines.length, 2);
+  const parallels = checked('(x+y)^2=1', 'parallel_lines').answer;
+  assert.equal(parallels.separation.squared, '2');
+  assert.deepEqual(parallels.lines, ['(x + y) = -1', '(x + y) = 1']);
+  assert.equal(checked('(x+y)^2=0', 'double_line').answer.lineMultiplicity, 2);
+  assert.equal(checked('(x+y)^2=-1', 'empty').answer.realLocus, 'empty');
+  assert.equal(checked('xy=6', 'hyperbola').answer.focalDistanceSquared, '24');
+  const renamed = checked('z*a=1', 'hyperbola', { variables: ['z', 'a'] }).answer;
+  assert.deepEqual(renamed.variables, ['z', 'a']);
+});
+
+test('rotated parabolas report exact vertex, focus and directrix in original coordinates', () => {
+  const answer = checked('(x+y)^2=4*(x-y)', 'parabola').answer;
+  assert.deepEqual(answer.vertex, ['0', '0']);
+  assert.deepEqual(answer.focus, ['1/2', '-1/2']);
+  assert.equal(answer.focalParameter, '-sqrt(1/2)');
+  assert.equal(answer.directrix, '(-x + y) = 1');
+  const translated = checked('(x+y-3)^2=4*(x-y-1)', 'parabola').answer;
+  assert.deepEqual(translated.vertex, ['2', '1']);
+  assert.deepEqual(translated.focus, ['5/2', '1/2']);
+  const reverse = checked('-(x+y)^2=4*(x-y)', 'parabola').answer;
+  assert.deepEqual(reverse.focus, ['-1/2', '1/2']);
+});
+
+test('mixed-term limits reject irrational spectra and oversized coefficients', () => {
+  for (const equation of ['x^2+x*y-y^2=1', '2*x^2+x*y+3*y^2=1',
+    '1e-260*x*y=1']) rejected(request(equation));
+  const input = request('x^2+x*y+y^2=1'), result = checked(input.equation, 'ellipse');
+  for (const mutate of [
+    r => { r.answer.diagonalization.eigenvalues[0] = '2'; },
+    r => { r.answer.foci[0][0] = '0'; },
+    r => { r.certificate.diagonalization.normSquared = '3'; },
+    r => { r.certificate.coefficients.B = '0'; },
+    r => { r.steps[1].rule = 'estimated-rotation'; },
+  ]) { const forged = clone(result); mutate(forged); assert.equal(verifyConicCertificate(input, forged), false); }
 });
 
 test('variable denominators are rejected before cancellations can erase excluded points', () => {

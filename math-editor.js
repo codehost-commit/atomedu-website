@@ -1,7 +1,7 @@
 // Visual editing and safe typesetting only. The local engine owns all mathematics.
 import { MathfieldElement } from './vendor/mathlive/mathlive.min.mjs';
 import katex from './vendor/katex/katex.mjs';
-import { toLatex } from './engine/latex.js';
+import { toLatex } from './engine/latex.js?v=proof-lab-18';
 
 MathfieldElement.fontsDirectory = new URL('./vendor/mathlive/fonts', import.meta.url).href;
 MathfieldElement.soundsDirectory = null;
@@ -11,7 +11,41 @@ let activeField = null;
 let fallbackField = null;
 let fieldNumber = 0;
 let keypadInteraction = false;
+let keypadElement = null;
 const focusListeners = new Set();
+
+function syncKeypadHeight() {
+  if (!keypadElement) return;
+  document.body.style.setProperty('--lab-pad-height', `${Math.ceil(keypadElement.getBoundingClientRect().height)}px`);
+}
+
+function keepFieldAboveKeypad(field) {
+  if (!field?.isConnected || !keypadElement?.classList.contains('is-open')) return;
+  const fieldRect = field.getBoundingClientRect();
+  const keypadRect = keypadElement.getBoundingClientRect();
+  const safeBottom = keypadRect.top - 20;
+  if (fieldRect.bottom > safeBottom) {
+    const scroller = field.closest('.graph-sidebar') || field.closest('.input-column');
+    (scroller || window).scrollBy({ top: fieldRect.bottom - safeBottom, behavior: 'smooth' });
+  }
+}
+
+export function openKeypad(field) {
+  if (!keypadElement || !field) return;
+  keypadElement.classList.add('is-open');
+  keypadElement.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('math-keypad-open');
+  syncKeypadHeight();
+  requestAnimationFrame(() => requestAnimationFrame(() => keepFieldAboveKeypad(field)));
+}
+
+export function closeKeypad() {
+  if (!keypadElement) return;
+  keypadInteraction = false;
+  keypadElement.classList.remove('is-open');
+  keypadElement.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('math-keypad-open');
+}
 
 export { toLatex };
 
@@ -67,6 +101,16 @@ export function createMathField(value = '', {
   if (describedBy) field.setAttribute('aria-describedby', describedBy);
   field.setAttribute('math-virtual-keyboard-policy', 'manual');
   field.mathVirtualKeyboardPolicy = 'manual';
+  // MathLive may dispatch focus/focusin asynchronously after focus() returns.
+  // Track programmatic focus immediately without opening the pad.
+  const focusField = field.focus.bind(field);
+  field.focus = (...args) => {
+    const result = focusField(...args);
+    if (field.isConnected && !field.readOnly && !field.closest('[hidden]')) {
+      setActiveMathField(field);
+    }
+    return result;
+  };
   field.smartFence = true;
   field.smartMode = false;
   field.onScrollIntoView = () => {
@@ -126,10 +170,7 @@ export function createLatexDisclosure(field, { label = 'Edit LaTeX source' } = {
     setMathFieldValue(field, input.value, { latex: true });
     field.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
   });
-  const hint = document.createElement('p');
-  hint.className = 'field-help';
-  hint.textContent = 'This source stays synchronized with the visual expression.';
-  details.append(summary, input, hint);
+  details.append(summary, input);
   return details;
 }
 
@@ -144,13 +185,12 @@ const BASIC = [
   key('Absolute value', '\\left|#0\\right|', `\\left|${BOX}\\right|`),
   key('x', 'x'), key('y', 'y'), key('a', 'a'), key('b', 'b'), key('n', 'n'), key('t', 't'),
   key('Less than', '<'), key('Greater than', '>'), key('Less than or equal', '\\le'),
-  key('Greater than or equal', '\\ge'), key('Not equal', '\\ne'), key('Approximately equal', '\\approx'),
-  key('Pi', '\\pi'), key('Infinity', '\\infty'), key('Imaginary unit', 'i'),
-  key('Euler’s number', 'e'), key('Percent', '\\%'), key('Factorial', '!'),
+  key('Greater than or equal', '\\ge'), key('Pi', '\\pi'), key('Percent', '\\%'),
 ];
 const ALGEBRA = [
   BASIC[0], BASIC[2], BASIC[3], BASIC[1],
   key('Nth root', '\\sqrt[#?]{#0}', `\\sqrt[${BOX}]{${BOX}}`),
+  key('Factorial', '!'),
   key('Reciprocal', '\\frac{1}{#0}', `\\frac{1}{${BOX}}`),
   key('Subscript', '{#0}_{#?}', `${BOX}_{${BOX}}`),
   key('Function', 'f\\left(#0\\right)', `f\\left(${BOX}\\right)`),
@@ -165,7 +205,7 @@ const ALGEBRA = [
   key('Product with bounds', '\\prod_{#?}^{#?}#0', `\\prod_{${BOX}}^{${BOX}}${BOX}`),
   key('Interval', '\\left[#0,#?\\right]', `\\left[${BOX},${BOX}\\right]`),
   key('Set', '\\left\\{#0\\right\\}', `\\left\\{${BOX}\\right\\}`),
-  key('Union', '\\cup'), key('Intersection', '\\cap'), key('Member of', '\\in'), key('Real numbers', '\\mathbb{R}'),
+  key('Union', '\\cup'), key('Intersection', '\\cap'), key('Member of', '\\in'),
 ];
 const FUNCTIONS = [
   key('Sine', '\\sin\\left(#0\\right)', `\\sin(${BOX})`),
@@ -192,6 +232,7 @@ const FUNCTIONS = [
   key('Degree', '^{\\circ}', '30^{\\circ}'), key('Theta', '\\theta'), key('Lambda', '\\lambda'),
 ];
 const SYMBOLS = [
+  key('Imaginary unit', 'i'), key('Euler’s number', 'e'),
   key('Pi', '\\pi'), key('Infinity', '\\infty'), key('Theta', '\\theta'), key('Alpha', '\\alpha'), key('Beta', '\\beta'), key('Delta', '\\Delta'),
   key('Right arrow', '\\to'), key('Left arrow', '\\leftarrow'), key('Implies', '\\Rightarrow'), key('Equivalent to', '\\Leftrightarrow'), key('Therefore', '\\therefore'), key('Because', '\\because'),
   key('Less than or equal', '\\le'), key('Greater than or equal', '\\ge'), key('Not equal', '\\ne'), key('Approximately equal', '\\approx'), key('Plus or minus', '\\pm'), key('Congruent', '\\cong'),
@@ -205,69 +246,60 @@ const NUMBERS = [
   key('1', '1'), key('2', '2'), key('3', '3'), key('Subtract', '-'),
   key('0', '0'), key('Decimal point', '.'), key('Equals', '='), key('Add', '+'),
 ];
-
-export function createKeypad(container, { announce = () => {} } = {}) {
+export function createKeypad(container, { announce = () => {}, onEnter = () => {} } = {}) {
+  keypadElement = container;
+  container.setAttribute('aria-hidden', 'true');
   const heading = document.createElement('div');
   heading.className = 'keypad-heading';
   const titleGroup = document.createElement('div');
   const title = document.createElement('h2');
   title.id = 'math-keypad-heading';
-  title.textContent = 'Build it like you write it.';
+  title.textContent = 'Math pad';
   const hint = document.createElement('p');
-  hint.textContent = 'Choose a template. Fill the gray boxes. Keep going.';
+  hint.textContent = 'Tap a symbol, then keep typing in the field above.';
   titleGroup.append(title, hint);
-  const target = document.createElement('span');
+  const target = document.createElement('button');
+  target.type = 'button';
   target.className = 'keypad-target';
-  heading.append(titleGroup, target);
-  const preview = document.createElement('div');
-  preview.className = 'keypad-preview';
-  const previewLabel = document.createElement('span');
-  previewLabel.className = 'keypad-preview-label';
-  previewLabel.textContent = 'Active expression';
-  const previewContent = document.createElement('div');
-  previewContent.className = 'keypad-preview-content';
-  previewContent.setAttribute('aria-label', 'Live preview of the active expression');
-  const returnToField = document.createElement('button');
-  returnToField.type = 'button';
-  returnToField.className = 'text-button keypad-return';
-  returnToField.textContent = 'Return to field ↑';
-  returnToField.addEventListener('click', () => {
+  target.addEventListener('click', () => {
     keypadInteraction = false;
     getActiveMathField()?.focus();
   });
-  preview.append(previewLabel, previewContent, returnToField);
-  let previewField = null;
-  const updatePreview = () => {
-    const source = previewField?.value || '';
-    if (!source) {
-      previewContent.textContent = 'Your expression will appear here as you type.';
-      previewContent.classList.add('is-empty');
-      return;
-    }
-    previewContent.classList.remove('is-empty');
-    // MathLive's empty template slots are rendered as inert gray boxes in KaTeX.
-    const latex = source.replace(/\\placeholder(?:\[[^\]]*\])?\{\}/g, BOX);
-    previewContent.replaceChildren(renderMath(latex, { tag: 'div', className: 'keypad-preview-math' }));
-  };
+  const done = document.createElement('button');
+  done.type = 'button';
+  done.className = 'keypad-done';
+  done.textContent = 'Done';
+  done.setAttribute('aria-label', 'Close math keypad');
+  done.addEventListener('click', closeKeypad);
+  const headingActions = document.createElement('div');
+  headingActions.className = 'keypad-heading-actions';
+  headingActions.append(target, done);
+  heading.append(titleGroup, headingActions);
   const updateTarget = (field) => {
-    target.textContent = `Editing: ${field?.getAttribute('aria-label') || 'choose an expression'}`;
-    returnToField.disabled = !field;
-    if (previewField !== field) {
-      previewField?.removeEventListener('input', updatePreview);
-      previewField?.removeEventListener('math-value-set', updatePreview);
-      previewField = field;
-      previewField?.addEventListener('input', updatePreview);
-      previewField?.addEventListener('math-value-set', updatePreview);
-    }
-    updatePreview();
+    target.textContent = field ? 'Return' : 'Choose a field';
+    target.setAttribute('aria-label', field ? `Return to ${field.getAttribute('aria-label')}` : 'Choose a math expression');
+    target.disabled = !field;
   };
   focusListeners.add(updateTarget);
   updateTarget(getActiveMathField());
+  const trackFieldInteraction = (event) => {
+    const field = event.composedPath().find((element) => element?.tagName === 'MATH-FIELD');
+    if (!field || field.readOnly || field.closest('[hidden]')) return;
+    setActiveMathField(field);
+  };
   const endKeypadInteraction = (event) => {
     if (!container.contains(event.target)) keypadInteraction = false;
   };
+  document.addEventListener('pointerdown', trackFieldInteraction, true);
+  document.addEventListener('focusin', trackFieldInteraction, true);
+  // Keyboard and scripted activation can dispatch click without pointerdown or focusin.
+  document.addEventListener('click', trackFieldInteraction, true);
   document.addEventListener('pointerdown', endKeypadInteraction, true);
   document.addEventListener('keydown', endKeypadInteraction, true);
+  const closeOnEscape = (event) => {
+    if (event.key === 'Escape' && container.classList.contains('is-open')) closeKeypad();
+  };
+  document.addEventListener('keydown', closeOnEscape);
   const tablist = document.createElement('div');
   tablist.className = 'keypad-tabs';
   tablist.setAttribute('role', 'tablist');
@@ -290,14 +322,47 @@ export function createKeypad(container, { announce = () => {} } = {}) {
   function makeButton(data) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `math-key ${data.command ? 'math-key-command' : ''}`;
+    button.className = `math-key ${data.command || data.action ? 'math-key-command' : ''}`;
+    if (data.icon) button.classList.add(`math-key-action-${data.icon}`);
+    if (!data.text && data.preview?.length > 24) button.classList.add('math-key-wide');
     button.setAttribute('aria-label', data.label);
     button.title = data.label;
-    if (data.text) button.textContent = data.text;
+    if (data.icon) {
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('width', '24');
+      icon.setAttribute('height', '24');
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', 'currentColor');
+      icon.setAttribute('stroke-width', '1.9');
+      icon.setAttribute('stroke-linecap', 'round');
+      icon.setAttribute('stroke-linejoin', 'round');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.classList.add('math-key-icon');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', {
+        left: 'M19 12H5m6-6-6 6 6 6',
+        right: 'M5 12h14m-6-6 6 6-6 6',
+        backspace: 'M9 5H21v14H9L2 12l7-7Zm3 4 6 6m0-6-6 6',
+        next: 'M4 12h13m-5-5 5 5-5 5m8-12v14',
+        undo: 'M9 7H4m0 0 4-4M4 7l4 4m-4-4h10a6 6 0 0 1 0 12h-2',
+        redo: 'M15 7h5m0 0-4-4m4 4-4 4m4-4H10a6 6 0 0 0 0 12h2',
+        return: 'M20 5v8a4 4 0 0 1-4 4H5m5-5-5 5 5 5',
+      }[data.icon]);
+      icon.append(path);
+      button.append(icon);
+      if (data.text) {
+        const caption = document.createElement('span');
+        caption.className = 'math-key-caption';
+        caption.textContent = data.text;
+        button.append(caption);
+      }
+    } else if (data.text) button.textContent = data.text;
     else button.append(renderMath(data.preview));
     // Preserve the math selection when a pointer taps the pad.
     button.addEventListener('pointerdown', (event) => event.preventDefault());
     button.addEventListener('click', () => {
+      if (data.action === 'enter') { onEnter(); return; }
       const field = getActiveMathField();
       if (!field) { announce('Choose a math expression first.'); return; }
       keypadInteraction = true;
@@ -347,12 +412,13 @@ export function createKeypad(container, { announce = () => {} } = {}) {
   });
   NUMBERS.forEach((data) => numberPad.append(makeButton(data)));
   [
-    { label: 'Move cursor left', command: 'moveToPreviousChar', text: '←' },
-    { label: 'Move cursor right', command: 'moveToNextChar', text: '→' },
-    { label: 'Backspace', command: 'deleteBackward', text: '⌫' },
-    { label: 'Next placeholder', command: 'moveToNextPlaceholder', text: 'Next box ⇥' },
-    { label: 'Undo', command: 'undo', text: '↶ Undo' },
-    { label: 'Redo', command: 'redo', text: '↷ Redo' },
+    { label: 'Move cursor left', command: 'moveToPreviousChar', icon: 'left' },
+    { label: 'Move cursor right', command: 'moveToNextChar', icon: 'right' },
+    { label: 'Backspace', command: 'deleteBackward', icon: 'backspace' },
+    { label: 'Next placeholder', command: 'moveToNextPlaceholder', icon: 'next', text: 'Next' },
+    { label: 'Undo', command: 'undo', icon: 'undo', text: 'Undo' },
+    { label: 'Redo', command: 'redo', icon: 'redo', text: 'Redo' },
+    { label: 'Return', action: 'enter', icon: 'return', text: 'Return' },
   ].forEach((data) => commands.append(makeButton(data)));
   [templates, numberPad, commands].forEach((group) => {
     group.addEventListener('keydown', (event) => {
@@ -371,14 +437,22 @@ export function createKeypad(container, { announce = () => {} } = {}) {
   footnote.className = 'keypad-footnote';
   footnote.textContent = 'Use Tab to move through template boxes. Integral and limit templates enter notation; solving depends on the engine’s listed coverage.';
   container.setAttribute('aria-labelledby', title.id);
-  container.append(heading, preview, tablist, layout, footnote);
+  container.append(heading, tablist, layout, footnote);
   chooseTab(0);
+  const sizeObserver = window.ResizeObserver ? new ResizeObserver(syncKeypadHeight) : null;
+  sizeObserver?.observe(container);
+  syncKeypadHeight();
   return { destroy() {
+    sizeObserver?.disconnect();
     focusListeners.delete(updateTarget);
-    previewField?.removeEventListener('input', updatePreview);
-    previewField?.removeEventListener('math-value-set', updatePreview);
+    document.removeEventListener('pointerdown', trackFieldInteraction, true);
+    document.removeEventListener('focusin', trackFieldInteraction, true);
+    document.removeEventListener('click', trackFieldInteraction, true);
     document.removeEventListener('pointerdown', endKeypadInteraction, true);
     document.removeEventListener('keydown', endKeypadInteraction, true);
+    document.removeEventListener('keydown', closeOnEscape);
+    closeKeypad();
+    if (keypadElement === container) keypadElement = null;
     keypadInteraction = false;
     container.replaceChildren();
   } };

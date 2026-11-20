@@ -253,6 +253,87 @@ function answerRoots(v, rs, identity = false) {
 }
 function report(topic, answer, steps, restrictions = [], evidence = {}) { return { topic, answer, steps, restrictions: unique(restrictions), evidence }; }
 
+// Compare values in different quadratic fields without approximating either
+// radical. If u and z have the same sign, u-z has the sign of
+// sign(u)*(u^2-z^2); the latter lies in u's single quadratic field.
+function fcompare(x, y) {
+  if (x.extension || y.extension) fail('Ordering these critical points needs a higher algebraic field.', 'unresolved');
+  try { return fsign(fsub(x, y)); }
+  catch (e) { if (e.code !== 'unsupported') throw e; }
+  const u = field(x.a.sub(y.a), x.b, x.d), z = field(0, y.b, y.d);
+  const su = fsign(u), sz = fsign(z);
+  if (!su || !sz || su !== sz) return su || -sz;
+  return su * fsign(fsub(fmul(u, u), field(y.b.mul(y.b).mul(y.d))));
+}
+function distinctOrdered(values) {
+  const sorted = [...values].sort(fcompare);
+  return sorted.filter((value, i) => !i || fcompare(value, sorted[i - 1]) !== 0);
+}
+function domainBoundaryRoots(ds, v, evidence) {
+  const boundaries = [];
+  for (const d of ds) {
+    if (d.relation !== '!=' || d.value !== '0') fail('This rational rule requires denominator exclusions only.');
+    const numerator = rationalFunction(d.expression).num;
+    const rr = roots(coefficients(numerator, v), v, evidence);
+    if (rr.identity) invalid('An original denominator is identically zero.');
+    boundaries.push(...rr.roots);
+  }
+  return distinctOrdered(boundaries);
+}
+function zeroProductFactors(s) {
+  let product;
+  try {
+    if (constantValue(s.right).zero) product = s.left;
+  } catch (e) { if (e.code === 'invalid' || e.code === 'budget') throw e; }
+  if (!product) try {
+    if (constantValue(s.left).zero) product = s.right;
+  } catch (e) { if (e.code === 'invalid' || e.code === 'budget') throw e; }
+  if (!product) return null;
+  let decomposed = false;
+  const visit = ast => {
+    if (ast.type === 'binary' && ast.op === '*') { decomposed = true; return [...visit(ast.left), ...visit(ast.right)]; }
+    if (ast.type === 'binary' && ast.op === '^') {
+      const k = constantValue(ast.right);
+      if (k.integer && k.cmp(1) > 0) { decomposed = true; return visit(ast.left); }
+    }
+    if (ast.type === 'neg') return visit(ast.arg);
+    return [ast];
+  };
+  const factors = visit(product);
+  if (factors.length > 16) fail('The zero-product rule has too many factors.', 'unresolved');
+  return decomposed ? factors : null;
+}
+function rationalEquation(s, options) {
+  const v = oneVariable([s.left, s.right], options.variable);
+  const residual = rationalFunction(bin('-', s.left, s.right));
+  const c = coefficients(residual.num, v), evidence = [], factors = zeroProductFactors(s);
+  const factorProofs = [];
+  let rr;
+  if (factors) {
+    const candidates = [];
+    let identity = false;
+    for (const factor of factors) {
+      const fc = coefficients(rationalFunction(factor).num, v), found = roots(fc, v, evidence);
+      factorProofs.push({ expression: print(factor), numerator: fc.map(String), roots: found.roots.map(ftext), identity: found.identity });
+      candidates.push(...found.roots); identity ||= found.identity;
+    }
+    rr = { roots: identity ? [] : distinctOrdered(candidates), identity };
+  } else rr = roots(c, v, evidence);
+  const ds = domains(s), restrictions = domainText(ds), boundary = rr.identity ? domainBoundaryRoots(ds, v, evidence) : [];
+  const kept = rr.roots.filter(x => ds.every(d => satisfies(d, { [v]: x })));
+  for (const x of kept) {
+    const env = { [v]: x };
+    if (fsign(fsub(exactAt(s.left, env), exactAt(s.right, env)))) fail('An original equation residual failed.', 'unresolved');
+  }
+  const answer = answerRoots(v, kept, rr.identity);
+  if (rr.identity) answer.solutionSet = boundary.length ? `All real numbers except {${boundary.map(ftext).join(', ')}}` : 'All real numbers';
+  const normalized = `${pPrint(residual.num)} = 0`;
+  return report('rational_equation', answer, [
+    st(s.source, normalized, factors ? 'exact_zero_product' : 'clear_rational_denominators', factors ? 'A finite product is zero exactly when at least one factor is zero. Solve every factor completely while retaining the original domain.' : 'On the recorded original domain, a rational equality is equivalent to its exact cross-multiplied numerator being zero.'),
+    st(normalized, rr.identity ? answer.solutionSet : `${v} ∈ {${kept.map(ftext).join(', ')}}`, 'complete_exact_roots_and_domain', 'Find every real numerator root, check each original denominator, and verify retained roots in the original equation. A zero numerator holds on precisely the original domain.'),
+  ], restrictions, { numerator: c.map(String), factors: factorProofs, candidates: rr.roots.map(ftext), excluded: rr.roots.filter(x => !kept.includes(x)).map(ftext), domainBoundary: boundary.map(ftext), children: evidence });
+}
+
 function polynomialDivision(input) {
   if (typeof input.dividend !== 'string' || typeof input.divisor !== 'string') invalid('Provide dividend and divisor expressions.');
   const a = parseExpression(input.dividend), b = parseExpression(input.divisor);
@@ -316,6 +397,59 @@ function functionOperation(input) {
 const flip = r => ({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' }[r]);
 const interval = (low, high, lowClosed = false, highClosed = false) => ({ low: String(low), high: String(high), lowClosed, highClosed });
 function intervalsText(a) { return a.map(i => i.low === i.high ? `{${i.low}}` : `${i.lowClosed ? '[' : '('}${i.low}, ${i.high}${i.highClosed ? ']' : ')'}`).join(' ∪ ') || '∅'; }
+function relationAllows(relation, sign) {
+  return relation === '<' ? sign < 0 : relation === '<=' ? sign <= 0 :
+    relation === '>' ? sign > 0 : relation === '>=' ? sign >= 0 : relation === '!=' ? sign !== 0 : false;
+}
+function multiplicity(c, x, v) {
+  let current = trimCoefficients(c), count = 0;
+  while (current.length > 1 && !fsign(peval(fromCoefficients(current, v), { [v]: x }))) {
+    count++;
+    current = current.slice(1).map((q, i) => q.mul(i + 1));
+  }
+  return count;
+}
+function rationalInequality(s, options) {
+  const v = oneVariable([s.left, s.right], options.variable);
+  const residual = reduceRational(rationalFunction(bin('-', s.left, s.right)), v);
+  const numerator = coefficients(residual.num, v), denominator = coefficients(residual.den, v);
+  const evidence = [], nr = roots(numerator, v, evidence), dr = roots(denominator, v, evidence);
+  const ds = domains(s), holes = domainBoundaryRoots(ds, v, evidence);
+  const points = distinctOrdered([...nr.roots, ...dr.roots, ...holes]);
+  let sign = numerator.length === 1 && numerator[0].zero ? 0 : numerator.at(-1).cmp(0) * denominator.at(-1).cmp(0) *
+    ((numerator.length + denominator.length) % 2 ? -1 : 1);
+  // The parity factor above is (-1)^(degree numerator + degree denominator).
+  const regionSigns = [sign];
+  for (const x of points) {
+    if ((multiplicity(numerator, x, v) + multiplicity(denominator, x, v)) % 2) sign = -sign;
+    regionSigns.push(sign);
+  }
+  const regions = regionSigns.map(x => relationAllows(s.relation, x));
+  const included = points.map(x => {
+    const env = { [v]: x };
+    if (!ds.every(d => satisfies(d, env))) return false;
+    if (!fsign(peval(residual.den, env))) return false;
+    const valueSign = fsign(peval(residual.num, env)) * fsign(peval(residual.den, env));
+    return relationAllows(s.relation, valueSign);
+  });
+  const pieces = [];
+  for (let i = 0; i <= points.length; i++) {
+    if (regions[i]) pieces.push(interval(i ? ftext(points[i - 1]) : '-∞', i < points.length ? ftext(points[i]) : '∞', i > 0 && included[i - 1], i < points.length && included[i]));
+    if (i < points.length && included[i] && !regions[i] && !regions[i + 1]) pieces.push(interval(ftext(points[i]), ftext(points[i]), true, true));
+  }
+  const intervals = [];
+  for (const part of pieces) {
+    const previous = intervals.at(-1);
+    if (previous && previous.high === part.low && previous.highClosed && part.lowClosed) {
+      previous.high = part.high; previous.highClosed = part.highClosed;
+    } else intervals.push(part);
+  }
+  const solutionSet = intervalsText(intervals), normalized = `${rationalPrint(residual, v)} ${s.relation} 0`;
+  return report('rational_inequality', { variable: v, intervals, solutionSet, complete: true }, [
+    st(s.source, normalized, 'normalize_rational_inequality', 'Move all terms to one side and simplify the rational expression while retaining every original denominator exclusion.'),
+    st(normalized, `${v} ∈ ${solutionSet}`, 'exact_rational_sign_chart', 'Order every exact zero, pole, and original domain hole. Start with the leading-term sign at negative infinity, flip only at odd multiplicities, and check all endpoints on the original domain.'),
+  ], domainText(ds), { numerator: numerator.map(String), denominator: denominator.map(String), criticalPoints: points.map(ftext), regionSigns, excluded: points.filter((_, i) => !included[i]).map(ftext), children: evidence });
+}
 function isolate(s, atom, v, allowVariable = false) {
   const placeholder = '_advanced_atom';
   if (variables(s.left).concat(variables(s.right)).includes(placeholder)) fail('Reserved internal variable.');
@@ -659,7 +793,7 @@ function textProblem(source, options) {
     }
   });
   validateDomains(s);
-  if (s.kind === 'inequality') return absoluteInequality(s, options);
+  if (s.kind === 'inequality') return atoms(s, a => a.type === 'call' && a.name === 'abs').length ? absoluteInequality(s, options) : rationalInequality(s, options);
   if (s.kind !== 'equation') fail('No advanced rule handles this statement kind.');
   if (atoms(s, a => a.type === 'call' && ['ln', 'log'].includes(a.name)).length) return logarithms(s, options);
   if (atoms(s, a => a.type === 'call' && a.name === 'sqrt').length) return radical(s, options);
@@ -669,7 +803,8 @@ function textProblem(source, options) {
     catch (e) { if (e.code !== 'unsupported') throw e; return rootPolynomial(s, options); }
   }
   if (atoms(s, a => (a.type === 'binary' && a.op === '^' && variables(a.right).length) || (a.type === 'call' && a.name === 'exp')).length) return exponential(s, options);
-  return biquadratic(s, options);
+  try { return biquadratic(s, options); }
+  catch (e) { if (e.code !== 'unsupported') throw e; return rationalEquation(s, options); }
 }
 
 function jsonInput(value, budget = { nodes: 0 }, depth = 0) {

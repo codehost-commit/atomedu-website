@@ -114,6 +114,192 @@ test('circle equations, similarity and conditional angle relationships', () => {
   assert.equal(solve('angles', { relationship: 'complementary', angle: 100 }).status, 'invalid');
 });
 
+test('exact transformations map single points and vertex lists with reduced rational coordinates', () => {
+  const translation = solve('transform', { point: [0.1, -0.2], transformation: 'translation', dx: 0.2, dy: 0.3 });
+  assertSolved(translation);
+  assert.equal(translation.certificate.assurance, 'exact-rational-check');
+  assert.deepEqual(translation.answer.image.map(p => p.exact), ['3/10', '1/10']);
+  close(translation.answer.image[0].value, 0.3);
+  const reflected = solve('transform', { vertices: [[2, 3], [-1, 4]], transformation: 'reflection', axis: 'y=-x' });
+  assertSolved(reflected);
+  assert.deepEqual(reflected.answer.images.map(p => p.map(c => c.value)), [[-3, -2], [-4, 1]]);
+  const rotated = solve('transform', { point: [3, 4], transformation: 'rotation', degrees: -90, center: [1, 2] });
+  assert.deepEqual(rotated.answer.image.map(p => p.value), [3, 0]);
+  const dilated = solve('transform', { point: [3, 4], transformation: 'dilation', factor: 0.5, center: [1, 2] });
+  assert.deepEqual(dilated.answer.image.map(p => p.exact), ['2', '3']);
+  for (const input of [
+    { point: [1, 2], transformation: 'rotation', degrees: 45 },
+    { point: [1, 2], transformation: 'reflection', axis: 'y=2x' },
+    { point: [1, 2], transformation: 'shear' },
+  ]) assert.equal(solve('transform', input).status, 'unsupported');
+  for (const input of [
+    { point: [1, 2], transformation: 'translation', dx: 1 },
+    { point: [1, 2], transformation: 'dilation', factor: -2 },
+    { vertices: [], transformation: 'reflection', axis: 'x' },
+    { point: [1, 2], vertices: [[1, 2]], transformation: 'rotation', degrees: 90 },
+  ]) assert.equal(solve('transform', input).status, 'invalid');
+  const source = { kind: 'geometry', topic: 'transform', point: [0.1, -0.2], transformation: 'translation', dx: 0.2, dy: 0.3 };
+  assert.equal(verifyGeometryCertificate(source, clone(translation)), true);
+  const forged = clone(translation); forged.answer.image[0].exact = '0.30000000000000004';
+  assert.equal(verifyGeometryCertificate(source, forged), false);
+});
+
+test('circle point relation uses exact squared distance and power', () => {
+  const input = { kind: 'geometry', topic: 'circle_relation', center: [1, -2], radius: 5, point: [4, 2] };
+  const on = solveGeometry(input);
+  assertSolved(on);
+  assert.equal(on.answer.position, 'on');
+  assert.equal(on.answer.distanceSquared.exact, '25');
+  assert.equal(on.answer.power.exact, '0');
+  assert.equal(verifyGeometryCertificate(input, clone(on)), true);
+  assert.equal(solve('circle_relation', { center: [0, 0], radius: 0.3, point: [0.3, 0] }).answer.position, 'on');
+  assert.equal(solve('circle_relation', { center: [0, 0], radius: 5, point: [0, 0] }).answer.position, 'inside');
+  assert.equal(solve('circle_relation', { center: [0, 0], radius: 5, point: [6, 0] }).answer.position, 'outside');
+  assert.equal(solve('circle_relation', { center: [0, 0], radius: 0, point: [0, 0] }).status, 'invalid');
+  const forged = clone(on); forged.answer.position = 'inside';
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+});
+
+test('circle tangent requires exact incidence and uses the radius as its normal', () => {
+  const input = { kind: 'geometry', topic: 'circle_tangent', center: [1, -2], radius: 5, point: [4, 2] };
+  const tangent = solveGeometry(input);
+  assertSolved(tangent);
+  assert.equal(tangent.certificate.assurance, 'exact-rational-check');
+  assert.deepEqual(tangent.answer.normal.map(p => p.exact), ['3', '4']);
+  assert.equal(tangent.answer.equation, '(3) * (x - (4)) + (4) * (y - (2)) = 0');
+  assert.equal(verifyGeometryCertificate(input, clone(tangent)), true);
+  assert.equal(solve('circle_tangent', { center: [0, 0], radius: 0.3, point: [0.3, 0] }).status, 'solved');
+  assert.equal(solve('circle_tangent', { center: [0, 0], radius: 5, point: [3, 3] }).status, 'invalid');
+  const forged = clone(tangent); forged.answer.normal[0].exact = '-3';
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+});
+
+test('arc length and sector area have reduced exact pi coefficients and bounded angles', () => {
+  const input = { kind: 'geometry', topic: 'circle_sector', radius: 3, centralAngle: 60 };
+  const sector = solveGeometry(input);
+  assertSolved(sector);
+  assert.equal(sector.certificate.assurance, 'exact-symbolic-check');
+  assert.equal(sector.answer.arcLength.exact, 'pi');
+  assert.equal(sector.answer.area.exact, '(3/2) * pi');
+  close(sector.answer.arcLength.value, Math.PI);
+  close(sector.answer.area.value, 1.5 * Math.PI);
+  assert.equal(verifyGeometryCertificate(input, clone(sector)), true);
+  const arc = solve('circle_arc', { diameter: 0.6, centralAngle: 30 });
+  assertSolved(arc);
+  assert.equal(arc.answer.arcLength.exact, '(1/20) * pi');
+  assert.equal(solve('circle_sector', { radius: 2, centralAngle: 0 }).answer.area.exact, '0');
+  assert.equal(solve('circle_sector', { radius: 2, centralAngle: 360 }).answer.area.exact, '(4) * pi');
+  for (const fields of [
+    { radius: 3, centralAngle: -1 }, { radius: 3, centralAngle: 361 },
+    { radius: 0, centralAngle: 30 }, { radius: 3, centralAngle: '30' },
+    { radius: 0.3, diameter: 0.6000000000000001, centralAngle: 30 },
+    { radius: 1e308, centralAngle: 360 },
+    { centralAngle: 30 },
+  ]) assert.equal(solve('circle_arc', fields).status, 'invalid');
+  const forged = clone(sector); forged.answer.area.exact = '(3/2) * pi + 1';
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+  const changed = { ...input, centralAngle: 90 };
+  assert.equal(verifyGeometryCertificate(changed, sector), false);
+});
+
+test('exact line relations distinguish intersection, perpendicular, parallel and coincidence', () => {
+  const input = { kind: 'geometry', topic: 'line_relation', line1: [[0, 0], [1, 1]], line2: [[0, 1], [1, 0]] };
+  const crossing = solveGeometry(input);
+  assertSolved(crossing);
+  assert.equal(crossing.answer.relation, 'perpendicular');
+  assert.deepEqual(crossing.answer.intersection.map(p => p.exact), ['1/2', '1/2']);
+  assert.equal(crossing.answer.determinantExact, '-2');
+  assert.equal(verifyGeometryCertificate(input, clone(crossing)), true);
+  assert.equal(solve('line_relation', { line1: [[0, 0], [1, 1]], line2: [[0, 1], [1, 2]] }).answer.relation, 'parallel');
+  assert.equal(solve('line_relation', { line1: [[0, 0], [1, 1]], line2: [[2, 2], [3, 3]] }).answer.relation, 'coincident');
+  assert.equal(solve('line_relation', { line1: [[0, 0], [1, 0.1]], line2: [[0, 1], [1, 1.100000000000001]] }).answer.relation, 'intersecting');
+  assert.equal(solve('line_relation', { line1: [[0, 0], [0, 0]], line2: [[0, 1], [1, 2]] }).status, 'invalid');
+  const forged = clone(crossing); forged.answer.intersection[0].exact = '2/4';
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+});
+
+test('triangle similarity checks corresponding squared side ratios exactly', () => {
+  const input = { kind: 'geometry', topic: 'triangle_similarity', triangle1: [[0, 0], [1, 0], [0, 1]], triangle2: [[0, 0], [1, 1], [-1, 1]] };
+  const similar = solveGeometry(input);
+  assertSolved(similar);
+  assert.equal(similar.answer.similar, true);
+  assert.equal(similar.answer.areaFactor.exact, '2');
+  assert.equal(similar.answer.scaleFactor.exact, 'sqrt(2)');
+  close(similar.answer.scaleFactor.value, Math.sqrt(2));
+  assert.equal(verifyGeometryCertificate(input, clone(similar)), true);
+  const different = solve('triangle_similarity', { triangle1: input.triangle1, triangle2: [[0, 0], [2, 0], [0, 3]] });
+  assertSolved(different);
+  assert.equal(different.answer.similar, false);
+  assert.equal(different.answer.scaleFactor, null);
+  assert.equal(solve('triangle_similarity', { triangle1: [[0, 0], [1, 1], [2, 2]], triangle2: input.triangle2 }).status, 'invalid');
+  const forged = clone(similar); forged.answer.similar = false;
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+});
+
+test('special right-triangle ratios retain exact radicals and explicit hypotheses', () => {
+  const input = { kind: 'geometry', topic: 'special_right_triangle', pattern: '30-60-90', knownSide: 'short_leg', length: 2 };
+  const sides = solveGeometry(input);
+  assertSolved(sides);
+  assert.equal(sides.certificate.assurance, 'exact-symbolic-check');
+  assert.equal(sides.answer.shortLeg.exact, '2');
+  assert.equal(sides.answer.longLeg.exact, '(2) * sqrt(3)');
+  assert.equal(sides.answer.hypotenuse.exact, '4');
+  close(sides.answer.longLeg.value, 2 * Math.sqrt(3));
+  assert.match(sides.restrictions[0], /assumptions/);
+  assert.equal(verifyGeometryCertificate(input, clone(sides)), true);
+  const longKnown = solve('special_right_triangle', { pattern: '30-60-90', knownSide: 'long_leg', length: 6 });
+  assert.equal(longKnown.answer.shortLeg.exact, '(2) * sqrt(3)');
+  assert.equal(longKnown.answer.hypotenuse.exact, '(4) * sqrt(3)');
+  const hypKnown = solve('special_right_triangle', { pattern: '30-60-90', knownSide: 'hypotenuse', length: 10 });
+  assert.equal(hypKnown.answer.shortLeg.exact, '5');
+  assert.equal(hypKnown.answer.longLeg.exact, '(5) * sqrt(3)');
+  const equalLegs = solve('special_right_triangle', { pattern: '45-45-90', knownSide: 'leg', length: 3 });
+  assert.equal(equalLegs.answer.hypotenuse.exact, '(3) * sqrt(2)');
+  const equalHyp = solve('special_right_triangle', { pattern: '45-45-90', knownSide: 'hypotenuse', length: 10 });
+  assert.equal(equalHyp.answer.leg1.exact, '(5) * sqrt(2)');
+  assert.equal(equalHyp.answer.leg2.exact, '(5) * sqrt(2)');
+  for (const fields of [
+    { pattern: '30-60-90', knownSide: 'short_leg', length: 0 },
+    { pattern: '45-45-90', knownSide: 'leg', length: -3 },
+    { pattern: '45-45-90', knownSide: 'leg', length: '3' },
+    { pattern: '30-60-90', knownSide: 'short_leg', length: 1e308 },
+    { pattern: '45-45-90', length: 3 },
+  ]) assert.equal(solve('special_right_triangle', fields).status, 'invalid');
+  for (const fields of [
+    { pattern: '60-60-60', knownSide: 'leg', length: 3 },
+    { pattern: '45-45-90', knownSide: 'short_leg', length: 3 },
+    { pattern: '30-60-90', knownSide: 'side', length: 3 },
+  ]) assert.equal(solve('special_right_triangle', fields).status, 'unsupported');
+  const forged = clone(sides); forged.answer.longLeg.exact = '(2) * sqrt(2)';
+  assert.equal(verifyGeometryCertificate(input, forged), false);
+});
+
+test('bounded perpendicular-bisector and circumcircle constructions use exact coordinates', () => {
+  const bisectorInput = { kind: 'geometry', topic: 'perpendicular_bisector', points: [[0.1, 0.2], [0.5, 0.2]] };
+  const bisector = solveGeometry(bisectorInput);
+  assertSolved(bisector);
+  assert.equal(bisector.certificate.assurance, 'exact-rational-check');
+  assert.deepEqual(bisector.answer.midpoint.map(c => c.exact), ['3/10', '1/5']);
+  assert.deepEqual(bisector.answer.normal.map(c => c.exact), ['2/5', '0']);
+  assert.equal(verifyGeometryCertificate(bisectorInput, clone(bisector)), true);
+  assert.equal(solve('perpendicular_bisector', { points: [[1, 1], [1, 1]] }).status, 'invalid');
+  assert.equal(solve('perpendicular_bisector', { points: [[0, 0]] }).status, 'invalid');
+  const badBisector = clone(bisector); badBisector.answer.midpoint[0].exact = '0.30000000000000004';
+  assert.equal(verifyGeometryCertificate(bisectorInput, badBisector), false);
+
+  const circleInput = { kind: 'geometry', topic: 'circumcircle', points: [[0, 0], [4, 0], [0, 6]] };
+  const circle = solveGeometry(circleInput);
+  assertSolved(circle);
+  assert.deepEqual(circle.answer.center.map(c => c.exact), ['2', '3']);
+  assert.equal(circle.answer.radiusSquared.exact, '13');
+  assert.equal(circle.answer.equation, '(x - (2))^2 + (y - (3))^2 = 13');
+  assert.equal(verifyGeometryCertificate(circleInput, clone(circle)), true);
+  assert.equal(solve('circumcircle', { points: [[0, 0], [1, 1], [2, 2]] }).status, 'invalid');
+  assert.equal(solve('circumcircle', { points: [[0, 0], [1, 0]] }).status, 'invalid');
+  const badCircle = clone(circle); badCircle.answer.radiusSquared.value = 14;
+  assert.equal(verifyGeometryCertificate(circleInput, badCircle), false);
+});
+
 test('invalid dimensions, degenerate triangles, unknown and malformed input', () => {
   for (const fields of [{ radius: 0 }, { radius: -1 }, { radius: NaN }, { radius: Infinity }, { radius: '3' }, {}]) assert.equal(solve('circle_area', fields).status, 'invalid');
   for (const sides of [[1, 2, 3], [1, 1, 5], [0, 1, 1], [-1, 2, 2], [3, 4], [3, 4, Infinity]]) assert.equal(solve('triangle_area', { sides }).status, 'invalid');
@@ -231,6 +417,88 @@ test('parallel angle theorems require both parallel lines and explicit position 
   const sameSide = fact('same_side_interior_angles', ...args), supplementary = fact('supplementary', args[0], args[1]);
   assertSolved(verifyGeometryProof({ givens: [parallel, sameSide], steps: [step(supplementary, 'same_side_interior_angles', ['g0', 'g1'])], goal: supplementary }));
   assert.equal(verifyGeometryProof({ givens: [parallel, sameSide], steps: [step(equal, 'same_side_interior_angles', ['g0', 'g1'])], goal: equal }).status, 'invalid');
+});
+
+test('a perpendicular transversal transfers only across explicitly parallel lines', () => {
+  const parallel = fact('parallel', 'A', 'B', 'C', 'D');
+  const first = fact('perpendicular', 'A', 'B', 'E', 'F');
+  const second = fact('perpendicular', 'D', 'C', 'F', 'E');
+  const proof = { givens: [parallel, first], steps: [step(second, 'parallel_perpendicular', ['g0', 'g1'])], goal: second };
+  assertSolved(verifyGeometryProof(proof));
+  assert.equal(verifyGeometryCertificate({ kind: 'geometry', topic: 'proof', proof }, verifyGeometryProof(proof)), true);
+  for (const premises of [['g0'], ['g1']]) assert.equal(verifyGeometryProof({ ...proof, steps: [step(second, 'parallel_perpendicular', premises)] }).status, 'invalid');
+  const wrong = fact('perpendicular', 'C', 'D', 'G', 'H');
+  assert.equal(verifyGeometryProof({ ...proof, steps: [step(wrong, 'parallel_perpendicular', ['g0', 'g1'])], goal: wrong }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [fact('perpendicular', 'A', 'B', 'B', 'A')], steps: [], goal: first }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [parallel, fact('perpendicular', 'B', 'A', 'D', 'C')], steps: [], goal: parallel }).status, 'invalid');
+});
+
+test('circle tangent and same intercepted arc theorems require their explicit circle facts', () => {
+  const tangent = fact('circle_tangent_at', 'O', 'P', 'Q');
+  const perpendicular = fact('perpendicular', 'O', 'P', 'P', 'Q');
+  const right = fact('right_angle', 'O', 'P', 'Q');
+  const proof = { givens: [tangent], steps: [step(perpendicular, 'tangent_radius_perpendicular', ['g0']), step(right, 'tangent_radius_perpendicular', ['g0'])], goal: right };
+  assertSolved(verifyGeometryProof(proof));
+  const forged = clone(verifyGeometryProof(proof)); forged.steps[1].after.args[2] = 'R';
+  assert.equal(verifyGeometryCertificate({ kind: 'geometry', topic: 'proof', proof }, forged), false);
+  assert.equal(verifyGeometryProof({ givens: [], steps: [step(right, 'tangent_radius_perpendicular')], goal: right }).status, 'invalid');
+  const wrongRight = fact('right_angle', 'P', 'O', 'Q');
+  assert.equal(verifyGeometryProof({ givens: [tangent], steps: [step(wrongRight, 'tangent_radius_perpendicular', ['g0'])], goal: wrongRight }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [fact('circle_tangent_at', 'O', 'P', 'P')], steps: [], goal: right }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [tangent, fact('collinear', 'O', 'P', 'Q')], steps: [], goal: tangent }).status, 'invalid');
+
+  const sameArc = fact('inscribed_same_arc', ['A', 'B', 'C'], ['C', 'D', 'A']);
+  const equal = angleEqual('A', 'B', 'C', 'C', 'D', 'A');
+  assertSolved(verifyGeometryProof({ givens: [sameArc], steps: [step(equal, 'inscribed_same_arc', ['g0'])], goal: equal }));
+  assert.equal(verifyGeometryProof({ givens: [sameArc], steps: [step(equal, 'inscribed_same_arc')], goal: equal }).status, 'invalid');
+  const other = angleEqual('A', 'B', 'C', 'A', 'E', 'C');
+  assert.equal(verifyGeometryProof({ givens: [sameArc], steps: [step(other, 'inscribed_same_arc', ['g0'])], goal: other }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [fact('inscribed_same_arc', ['A', 'B', 'C'], ['A', 'D', 'E'])], steps: [], goal: equal }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [sameArc, fact('collinear', 'A', 'B', 'C')], steps: [], goal: sameArc }).status, 'invalid');
+});
+
+test('Pythagorean theorem and converse require a named nondegenerate triangle', () => {
+  const triangle = fact('triangle', 'A', 'B', 'C');
+  const relation = fact('pythagorean_relation', 'A', 'B', 'C');
+  const right = fact('right_angle', 'A', 'B', 'C');
+  assertSolved(verifyGeometryProof({ givens: [triangle, right], steps: [step(relation, 'pythagorean_theorem', ['g0', 'g1'])], goal: relation }));
+  assertSolved(verifyGeometryProof({ givens: [triangle, relation], steps: [step(right, 'pythagorean_converse', ['g0', 'g1'])], goal: right }));
+  assert.equal(verifyGeometryProof({ givens: [relation], steps: [step(right, 'pythagorean_converse', ['g0'])], goal: right }).status, 'invalid');
+  const wrong = fact('right_angle', 'A', 'C', 'B');
+  assert.equal(verifyGeometryProof({ givens: [triangle, relation], steps: [step(wrong, 'pythagorean_converse', ['g0', 'g1'])], goal: wrong }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [triangle, relation, fact('collinear', 'A', 'B', 'C')], steps: [step(right, 'pythagorean_converse', ['g0', 'g1'])], goal: right }).status, 'invalid');
+});
+
+test('AA, SSS and SAS similarity preserve exact vertex and side correspondence', () => {
+  const similar = fact('triangle_similar', ['A', 'B', 'C'], ['D', 'E', 'F']);
+  const aAngle = angleEqual('B', 'A', 'C', 'E', 'D', 'F');
+  const bAngle = angleEqual('A', 'B', 'C', 'D', 'E', 'F');
+  const abToBc = fact('segment_ratio_equal', 'A', 'B', 'D', 'E', 'B', 'C', 'E', 'F');
+  const abToCa = fact('segment_ratio_equal', 'A', 'B', 'D', 'E', 'C', 'A', 'F', 'D');
+  const abToAc = fact('segment_ratio_equal', 'A', 'B', 'D', 'E', 'A', 'C', 'D', 'F');
+  const prove = (rule, evidence) => {
+    const givens = [...triangles, ...evidence];
+    return verifyGeometryProof({ givens, steps: [step(similar, rule, givens.map((_, i) => `g${i}`))], goal: similar });
+  };
+  assertSolved(prove('aa_similarity', [aAngle, bAngle]));
+  assert.equal(prove('aa_similarity', [aAngle]).status, 'invalid');
+  assertSolved(prove('sss_similarity', [abToBc, abToCa]));
+  assert.equal(prove('sss_similarity', [abToBc]).status, 'invalid');
+  assertSolved(prove('sas_similarity', [aAngle, abToAc]));
+  assert.equal(prove('sas_similarity', [aAngle, abToBc]).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [aAngle, bAngle], steps: [step(similar, 'aa_similarity', ['g0', 'g1'])], goal: similar }).status, 'invalid');
+  const wrongMapping = fact('triangle_similar', ['A', 'B', 'C'], ['D', 'F', 'E']);
+  assert.equal(verifyGeometryProof({ givens: [...triangles, aAngle, bAngle], steps: [step(wrongMapping, 'aa_similarity', ['g0', 'g1', 'g2', 'g3'])], goal: wrongMapping }).status, 'invalid');
+
+  const cAngle = angleEqual('A', 'C', 'B', 'D', 'F', 'E');
+  assertSolved(verifyGeometryProof({ givens: [similar], steps: [step(cAngle, 'similarity_correspondence', ['g0'])], goal: cAngle }));
+  assertSolved(verifyGeometryProof({ givens: [similar], steps: [step(abToBc, 'similarity_correspondence', ['g0'])], goal: abToBc }));
+  assert.equal(verifyGeometryProof({ givens: [similar], steps: [step(segmentEqual('A', 'B', 'D', 'E'), 'similarity_correspondence', ['g0'])], goal: segmentEqual('A', 'B', 'D', 'E') }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [similar], steps: [step(fact('segment_ratio_equal', 'A', 'B', 'D', 'F', 'B', 'C', 'E', 'F'), 'similarity_correspondence', ['g0'])], goal: abToBc }).status, 'invalid');
+  assertSolved(verifyGeometryProof({ givens: [...triangles, congruent()], steps: [step(similar, 'congruence_implies_similarity', ['g0', 'g1', 'g2'])], goal: similar }));
+  assert.equal(verifyGeometryProof({ givens: [congruent()], steps: [step(similar, 'congruence_implies_similarity', ['g0'])], goal: similar }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [...triangles, congruent(['A', 'B', 'C'], ['D', 'F', 'E'])], steps: [step(similar, 'congruence_implies_similarity', ['g0', 'g1', 'g2'])], goal: similar }).status, 'invalid');
+  assert.equal(verifyGeometryProof({ givens: [similar, fact('collinear', 'A', 'B', 'C')], steps: [], goal: similar }).status, 'invalid');
 });
 
 test('vertical angles, linear pairs and right angle congruence use explicit facts', () => {

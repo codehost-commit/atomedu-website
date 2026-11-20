@@ -1,4 +1,5 @@
 import { difficultyToInt, estimateDifficulty } from './difficulty.js';
+import { Q, rationalSqrt } from './core.js';
 
 export const TOPICS = Object.freeze([
   { id: 'linear', label: 'Linear equations', subject: 'algebra_1' },
@@ -17,6 +18,16 @@ export const TOPICS = Object.freeze([
   { id: 'geometric_sequence', label: 'Geometric sequences', subject: 'algebra_2' },
   { id: 'distance', label: 'Coordinate distance', subject: 'geometry' },
   { id: 'pythagorean', label: 'Pythagorean theorem', subject: 'geometry' },
+  { id: 'trigonometry', label: 'Exact unit circle and angle identities', subject: 'precalculus' },
+  { id: 'polar', label: 'Exact polar coordinates', subject: 'precalculus' },
+  { id: 'vector', label: 'Exact vectors', subject: 'precalculus' },
+  { id: 'regression', label: 'Exact least-squares regression', subject: 'data_reasoning' },
+  { id: 'two_way_probability', label: 'Two-way table probability', subject: 'data_reasoning' },
+  { id: 'perpendicular_bisector', label: 'Exact perpendicular bisectors', subject: 'geometry' },
+  { id: 'circumcircle', label: 'Exact circumcircles', subject: 'geometry' },
+  { id: 'circle_arc', label: 'Exact circle arcs', subject: 'geometry' },
+  { id: 'circle_sector', label: 'Exact circle sectors', subject: 'geometry' },
+  { id: 'special_right_triangle', label: 'Special right triangles', subject: 'geometry' },
 ].map(topic => Object.freeze(topic)));
 
 const ALIASES = Object.freeze({
@@ -26,6 +37,7 @@ const ALIASES = Object.freeze({
   abs: 'absolute_value', inequality: 'inequalities',
   arithmetic: 'arithmetic_sequence', geometric: 'geometric_sequence',
   pythagoras: 'pythagorean',
+  two_way_table: 'two_way_probability', conditional_probability: 'two_way_probability',
 });
 
 function hash(text) {
@@ -369,6 +381,368 @@ function geometry(ctx, topic) {
     ], intentional_errors: [mistake(input, `${variable} = ${a + b}`, 'adding_perpendicular_lengths', 'Adding perpendicular lengths does not give the straight-line distance or the hypotenuse.')] };
 }
 
+// This small exact oracle builds the generator's proposed answer from its
+// parameters. The public engine separately solves the structured request and
+// replays its certificate before accepting it.
+const PC_ROOTS = [1, 2, 3, 6];
+const PC_KEYS = ['rational', 'sqrt2', 'sqrt3', 'sqrt6'];
+const pcField = (r = 0, s2 = 0, s3 = 0, s6 = 0) => [r, s2, s3, s6].map(Q);
+const pcZero = () => pcField();
+const pcOne = () => pcField(1);
+const pcAdd = (a, b) => a.map((value, i) => value.add(b[i]));
+const pcNeg = a => a.map(value => value.neg());
+const pcSub = (a, b) => pcAdd(a, pcNeg(b));
+const pcScale = (a, q) => a.map(value => value.mul(q));
+const pcZeroValue = a => a.every(value => value.zero);
+
+function pcMul(a, b) {
+  const result = pcZero();
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    result[i ^ j] = result[i ^ j].add(a[i].mul(b[j]).mul(PC_ROOTS[i & j]));
+  }
+  return result;
+}
+
+function pcDivide(a, b) {
+  if (pcZeroValue(b)) throw new RangeError('Cannot generate division by zero.');
+  const conjugate = (flip2, flip3) => b.map((value, i) =>
+    value.mul((i & 1 ? flip2 : 1) * (i & 2 ? flip3 : 1)));
+  const partner = pcMul(pcMul(conjugate(-1, 1), conjugate(1, -1)), conjugate(-1, -1));
+  const denominator = pcMul(b, partner);
+  if (denominator.slice(1).some(value => !value.zero) || denominator[0].zero) {
+    throw new RangeError('Generated scalar is outside the exact field.');
+  }
+  return pcScale(pcMul(a, partner), Q(1).div(denominator[0]));
+}
+
+function pcExact(a) {
+  const parts = [];
+  for (let i = 0; i < 4; i++) {
+    const q = a[i];
+    if (q.zero) continue;
+    const magnitude = q.n < 0n ? q.neg() : q;
+    let body = i === 0 ? String(magnitude) : `sqrt(${PC_ROOTS[i]})`;
+    if (i && magnitude.n !== 1n) body = `${magnitude.n}*${body}`;
+    if (i && magnitude.d !== 1n) body += `/${magnitude.d}`;
+    parts.push(`${parts.length ? q.n < 0n ? ' - ' : ' + ' : q.n < 0n ? '-' : ''}${body}`);
+  }
+  return { expression: parts.join('') || '0',
+    coefficients: Object.fromEntries(PC_KEYS.map((key, i) => [key, String(a[i])])) };
+}
+
+function pcScalar(value) {
+  return value && typeof value === 'object'
+    ? PC_KEYS.map(key => Q(value[key] ?? 0)) : pcField(value);
+}
+
+const pcVector = values => ({ exact: true, dimension: values.length, components: values.map(pcExact) });
+const pcDot = (a, b) => a.reduce((value, entry, i) => pcAdd(value, pcMul(entry, b[i])), pcZero());
+const pcAngle = index => String(Q(index).div(12));
+
+// Independent, known unit-circle values for 0, 15, 30, 45, 60 and 75 degrees.
+const PC_FIRST_QUADRANT = [
+  [pcField(1), pcField(0)],
+  [pcField(0, '1/4', 0, '1/4'), pcField(0, '-1/4', 0, '1/4')],
+  [pcField(0, 0, '1/2'), pcField('1/2')],
+  [pcField(0, '1/2'), pcField(0, '1/2')],
+  [pcField('1/2'), pcField(0, 0, '1/2')],
+  [pcField(0, '-1/4', 0, '1/4'), pcField(0, '1/4', 0, '1/4')],
+];
+
+function pcUnit(index) {
+  const [c, s] = PC_FIRST_QUADRANT[index % 6];
+  switch (Math.floor(index / 6)) {
+    case 0: return { cos: c, sin: s };
+    case 1: return { cos: pcNeg(s), sin: c };
+    case 2: return { cos: pcNeg(c), sin: pcNeg(s) };
+    default: return { cos: s, sin: pcNeg(c) };
+  }
+}
+
+function pcRotate(point, index) {
+  const { cos, sin } = pcUnit(index);
+  return [pcSub(pcMul(point[0], cos), pcMul(point[1], sin)),
+    pcAdd(pcMul(point[0], sin), pcMul(point[1], cos))];
+}
+
+function pcNorm(squared) {
+  const q = squared[0];
+  if (squared.slice(1).some(value => !value.zero)) {
+    throw new RangeError('This generator only proposes rational squared norms.');
+  }
+  for (let i = 0; i < 4; i++) {
+    const root = rationalSqrt(q.div(PC_ROOTS[i]));
+    if (root !== null) {
+      const value = pcZero(); value[i] = root;
+      return { squared: pcExact(squared), magnitude: pcExact(value) };
+    }
+  }
+  return { squared: pcExact(squared), magnitude: { expression: `sqrt(${q})`, radicand: String(q) } };
+}
+
+function precalculusAnswer(input, index) {
+  const { topic, operation } = input;
+  if (topic === 'trigonometry') {
+    const resultIndex = operation === 'unit_circle' ? index
+      : operation === 'double_angle' ? (2 * index) % 24
+      : (input.firstIndex + (operation === 'angle_sum' ? input.secondIndex : -input.secondIndex) + 24) % 24;
+    const { cos, sin } = pcUnit(resultIndex);
+    return { exact: true, piMultiple: pcAngle(resultIndex), cos: pcExact(cos), sin: pcExact(sin),
+      tan: pcZeroValue(cos) ? null : pcExact(pcDivide(sin, cos)) };
+  }
+  if (topic === 'polar') {
+    if (operation === 'to_cartesian') {
+      const r = Q(input.radius), unit = pcUnit(index);
+      return { ...pcVector([pcScale(unit.cos, r), pcScale(unit.sin, r)]),
+        radius: String(r), piMultiple: pcAngle(index) };
+    }
+    return pcVector(pcRotate(input.point.map(pcScalar), index));
+  }
+  const a = input.a.map(pcScalar), b = input.b?.map(pcScalar);
+  if (operation === 'add' || operation === 'subtract') {
+    return pcVector(a.map((value, i) => operation === 'add' ? pcAdd(value, b[i]) : pcSub(value, b[i])));
+  }
+  if (operation === 'scale') return pcVector(a.map(value => pcMul(value, pcScalar(input.factor))));
+  if (operation === 'dot') {
+    const value = pcDot(a, b);
+    return { exact: true, value: pcExact(value), orthogonal: pcZeroValue(value) };
+  }
+  if (operation === 'cross') {
+    if (a.length === 2) return { exact: true,
+      determinant: pcExact(pcSub(pcMul(a[0], b[1]), pcMul(a[1], b[0]))) };
+    return pcVector([pcSub(pcMul(a[1], b[2]), pcMul(a[2], b[1])),
+      pcSub(pcMul(a[2], b[0]), pcMul(a[0], b[2])),
+      pcSub(pcMul(a[0], b[1]), pcMul(a[1], b[0]))]);
+  }
+  if (operation === 'norm') return { exact: true, ...pcNorm(pcDot(a, a)) };
+  if (operation === 'distance') {
+    const delta = a.map((value, i) => pcSub(value, b[i]));
+    return { exact: true, delta: pcVector(delta), ...pcNorm(pcDot(delta, delta)) };
+  }
+  if (operation === 'projection') {
+    const factor = pcDivide(pcDot(a, b), pcDot(b, b));
+    return { ...pcVector(b.map(value => pcMul(value, factor))), factor: pcExact(factor) };
+  }
+  return pcVector(pcRotate(a, index));
+}
+
+function precalculus(ctx, topic) {
+  const { int, signed, score, magnitude } = ctx;
+  const angleIndex = () => int(0, 23);
+  const number = () => signed(1, Math.min(magnitude, 8));
+  let input, index = angleIndex();
+  if (topic === 'trigonometry') {
+    const operation = score < 400 ? 'unit_circle'
+      : score < 650 ? ['angle_sum', 'angle_difference'][int(0, 1)]
+      : ['unit_circle', 'angle_sum', 'angle_difference', 'double_angle'][int(0, 3)];
+    if (operation === 'angle_sum' || operation === 'angle_difference') {
+      const secondIndex = angleIndex();
+      input = { kind: 'precalculus', topic, operation, angleA: pcAngle(index), angleB: pcAngle(secondIndex) };
+      // Indexes are local construction data, never sent to the strict public schema.
+      index = { firstIndex: index, secondIndex };
+    } else input = { kind: 'precalculus', topic, operation, angle: pcAngle(index) };
+  } else if (topic === 'polar') {
+    const operation = score < 400 ? 'to_cartesian'
+      : ['to_cartesian', 'rotate'][int(0, 1)];
+    if (operation === 'to_cartesian') input = { kind: 'precalculus', topic, operation,
+      radius: fraction(int(1, magnitude), int(1, 4)), angle: pcAngle(index) };
+    else input = { kind: 'precalculus', topic, operation,
+      point: [number(), number()], angle: pcAngle(index) };
+  } else {
+    const operation = score < 400 ? ['add', 'subtract', 'scale', 'dot'][int(0, 3)]
+      : score < 650 ? ['add', 'subtract', 'dot', 'cross', 'norm', 'distance'][int(0, 5)]
+      : ['cross', 'norm', 'distance', 'projection', 'rotate'][int(0, 4)];
+    const dimension = operation === 'rotate' ? 2 : score >= 650 && int(0, 1) ? 3 : 2;
+    const a = Array.from({ length: dimension }, number);
+    const b = Array.from({ length: dimension }, number);
+    input = { kind: 'precalculus', topic, operation, a };
+    if (['add', 'subtract', 'dot', 'cross', 'distance', 'projection'].includes(operation)) input.b = b;
+    if (operation === 'scale') input.factor = fraction(int(1, magnitude), int(1, 4));
+    if (operation === 'rotate') input.angle = pcAngle(index);
+  }
+  const construction = typeof index === 'number' ? { angleIndex: index } : index;
+  const answer = precalculusAnswer({ ...input, ...construction }, construction.angleIndex ?? 0);
+  const wrong = JSON.parse(JSON.stringify(answer));
+  const alter = value => {
+    if (!value || typeof value !== 'object') return false;
+    if (value.coefficients) {
+      const changed = pcExact(pcAdd(pcScalar(value.coefficients), pcOne()));
+      Object.assign(value, changed);
+      return true;
+    }
+    return Object.values(value).some(alter);
+  };
+  alter(wrong);
+  const task = `Find the exact ${topic} result for ${input.operation}.`;
+  return { input, task, expected: { kind: 'precalculus', topic, operation: input.operation, answer },
+    referenceSteps: [step(input, answer, 'exact_precalculus_calculation',
+      'Use the exact unit-circle and vector identities; express every scalar in Q(sqrt(2), sqrt(3)).')],
+    intentional_errors: [mistake(input, wrong, 'incorrect_exact_scalar',
+      'Adding 1 to an exact scalar changes the result.')], restrictions: [] };
+}
+
+function precalculusPrompt(input, task) {
+  const angle = value => `${value}π`;
+  const vector = values => `(${values.map(value => pcExact(pcScalar(value)).expression).join(', ')})`;
+  if (input.topic === 'trigonometry') {
+    return `${task} ${input.angle === undefined
+      ? `${angle(input.angleA)} and ${angle(input.angleB)}` : angle(input.angle)}.`;
+  }
+  if (input.topic === 'polar') {
+    if (input.operation === 'to_cartesian') return `${task} (r, θ) = (${input.radius}, ${angle(input.angle)}).`;
+    return `${task} Rotate ${vector(input.point)} by ${angle(input.angle)}.`;
+  }
+  return `${task} a = ${vector(input.a)}${input.b ? `, b = ${vector(input.b)}` : ''}` +
+    `${input.factor === undefined ? '' : `, factor = ${input.factor}`}` +
+    `${input.angle === undefined ? '' : `, angle = ${angle(input.angle)}`}.`;
+}
+
+function dataReasoning(ctx, topic) {
+  const { int, signed, score, magnitude } = ctx;
+  let input, answer;
+  if (topic === 'regression') {
+    const operation = score < 400 ? 'fit' : ['fit', 'correlation'][int(0, 1)];
+    const n = int(3, score >= 650 ? 6 : 4), start = signed(0, 4);
+    const slope = signed(1, Math.min(magnitude, 6)), intercept = signed(0, magnitude);
+    const noiseIndex = int(0, n - 1), noise = score < 400 ? 0 : signed(0, 3);
+    const points = Array.from({ length: n }, (_, i) => {
+      const x = start + i;
+      return [x, slope * x + intercept + (i === noiseIndex ? noise : 0)];
+    });
+    input = { kind: 'data_reasoning', topic, operation, points };
+    if (operation === 'fit' && score >= 400) input.at = fraction(int(1, 9), int(1, 3));
+    const count = Q(n), xs = points.reduce((a, p) => a.add(p[0]), Q(0));
+    const ys = points.reduce((a, p) => a.add(p[1]), Q(0));
+    const xx = points.reduce((a, p) => a.add(Q(p[0]).mul(p[0])), Q(0));
+    const yy = points.reduce((a, p) => a.add(Q(p[1]).mul(p[1])), Q(0));
+    const xy = points.reduce((a, p) => a.add(Q(p[0]).mul(p[1])), Q(0));
+    const sxx = count.mul(xx).sub(xs.mul(xs));
+    const syy = count.mul(yy).sub(ys.mul(ys));
+    const sxy = count.mul(xy).sub(xs.mul(ys));
+    const fittedSlope = sxy.div(sxx), fittedIntercept = ys.sub(fittedSlope.mul(xs)).div(count);
+    const radical = sxx.mul(syy), root = syy.zero ? null : rationalSqrt(radical);
+    answer = { slope: String(fittedSlope), intercept: String(fittedIntercept),
+      correlation: syy.zero ? null : sxy.zero ? '0' : root ? String(sxy.div(root)) : `${sxy}/sqrt(${radical})`,
+      correlationSquared: syy.zero ? null : String(sxy.mul(sxy).div(radical)), exact: true };
+    if (input.at !== undefined) {
+      answer.at = String(Q(input.at));
+      answer.prediction = String(fittedSlope.mul(input.at).add(fittedIntercept));
+    }
+  } else {
+    const operation = score < 400 ? 'conditional_probability'
+      : ['conditional_probability', 'independence'][int(0, 1)];
+    const rows = score >= 650 ? int(2, 3) : 2, columns = score >= 650 ? int(2, 3) : 2;
+    const rowWeights = Array.from({ length: rows }, () => int(1, magnitude));
+    const columnWeights = Array.from({ length: columns }, () => int(1, magnitude));
+    const table = rowWeights.map(row => columnWeights.map(column => row * column));
+    if (operation === 'conditional_probability' || int(0, 1)) table[int(0, rows - 1)][int(0, columns - 1)] += int(1, 4);
+    input = { kind: 'data_reasoning', topic: 'two_way_table', operation, table };
+    const rowTotals = table.map(row => row.reduce((a, b) => a + b, 0));
+    const columnTotals = columnWeights.map((_, j) => table.reduce((a, row) => a + row[j], 0));
+    const total = rowTotals.reduce((a, b) => a + b, 0);
+    if (operation === 'independence') {
+      answer = { independent: table.every((row, i) => row.every((cell, j) =>
+        cell * total === rowTotals[i] * columnTotals[j])), exact: true };
+    } else {
+      const event = { axis: int(0, 1) ? 'row' : 'column', index: 0 };
+      const given = { axis: int(0, 1) ? 'row' : 'column', index: 0 };
+      event.index = int(0, event.axis === 'row' ? rows - 1 : columns - 1);
+      given.index = int(0, given.axis === 'row' ? rows - 1 : columns - 1);
+      input.event = event; input.given = given;
+      const givenCount = given.axis === 'row' ? rowTotals[given.index] : columnTotals[given.index];
+      let jointCount = 0;
+      for (let i = 0; i < rows; i++) for (let j = 0; j < columns; j++) {
+        const inEvent = (event.axis === 'row' ? i : j) === event.index;
+        const inGiven = (given.axis === 'row' ? i : j) === given.index;
+        if (inEvent && inGiven) jointCount += table[i][j];
+      }
+      answer = { probability: fraction(jointCount, givenCount), jointCount: String(jointCount),
+        givenCount: String(givenCount), exact: true };
+    }
+  }
+  const wrong = JSON.parse(JSON.stringify(answer));
+  if (topic === 'regression') wrong.slope = String(Q(answer.slope).add(1));
+  else if (input.operation === 'independence') wrong.independent = !answer.independent;
+  else wrong.probability = String(Q(answer.probability).add(1));
+  const task = topic === 'regression' ? 'Find the exact least-squares line and correlation.'
+    : input.operation === 'independence' ? 'Determine whether the two-way table is independent.'
+      : 'Find the exact conditional probability from the two-way table.';
+  return { input, task, expected: { kind: 'data_reasoning', topic: input.topic, operation: input.operation, answer },
+    referenceSteps: [step(input, answer, 'exact_data_reasoning',
+      'Use exact paired sums or table counts and reduce the resulting rational values.')],
+    intentional_errors: [mistake(input, wrong, 'incorrect_count_or_fit',
+      'The proposed result changes an exact count, slope, or independence decision.')], restrictions: [] };
+}
+
+const piText = coefficient => coefficient.zero ? '0' : coefficient.eq(1) ? 'pi' : `(${coefficient}) * pi`;
+const radicalText = (coefficient, root = 1) => root === 1 ? String(coefficient) : `(${coefficient}) * sqrt(${root})`;
+
+function exactGeometry(ctx, topic) {
+  const { int, signed, magnitude } = ctx;
+  const x = signed(0, magnitude), y = signed(0, magnitude);
+  let input, answer;
+  if (topic === 'perpendicular_bisector') {
+    const dx = signed(1, magnitude), dy = signed(1, magnitude);
+    input = { kind: 'geometry', topic, points: [[x, y], [x + dx, y + dy]] };
+    const mx = Q(2 * x + dx).div(2), my = Q(2 * y + dy).div(2);
+    answer = { midpoint: [String(mx), String(my)], normal: [String(dx), String(dy)],
+      equation: `(${dx}) * (x - (${mx})) + (${dy}) * (y - (${my})) = 0` };
+  } else if (topic === 'circumcircle') {
+    const dx = signed(1, magnitude), dy = signed(1, magnitude);
+    input = { kind: 'geometry', topic, points: [[x, y], [x + dx, y], [x, y + dy]] };
+    const cx = Q(2 * x + dx).div(2), cy = Q(2 * y + dy).div(2);
+    const r2 = Q(dx * dx + dy * dy).div(4);
+    answer = { center: [String(cx), String(cy)], radiusSquared: String(r2),
+      equation: `(x - (${cx}))^2 + (y - (${cy}))^2 = ${r2}` };
+  } else if (topic === 'circle_arc' || topic === 'circle_sector') {
+    const radius = int(1, magnitude), centralAngle = int(1, 12) * 30;
+    input = { kind: 'geometry', topic, radius, centralAngle };
+    answer = { arcLength: piText(Q(radius * centralAngle).div(180)) };
+    if (topic === 'circle_sector') answer.area = piText(Q(radius * radius * centralAngle).div(360));
+  } else {
+    const pattern = int(0, 1) ? '30-60-90' : '45-45-90';
+    const knownSide = pattern === '30-60-90'
+      ? ['short_leg', 'long_leg', 'hypotenuse'][int(0, 2)] : ['leg', 'hypotenuse'][int(0, 1)];
+    const length = int(1, magnitude), q = Q(length);
+    input = { kind: 'geometry', topic, pattern, knownSide, length };
+    if (pattern === '30-60-90') {
+      const short = knownSide === 'short_leg' ? q : knownSide === 'hypotenuse' ? q.div(2) : q.div(3);
+      const root = knownSide === 'long_leg' ? 3 : 1;
+      answer = { shortLeg: radicalText(short, root),
+        longLeg: knownSide === 'long_leg' ? String(q) : radicalText(short, 3),
+        hypotenuse: knownSide === 'hypotenuse' ? String(q) : radicalText(short.mul(2), root) };
+    } else {
+      const leg = knownSide === 'leg' ? String(q) : radicalText(q.div(2), 2);
+      answer = { leg1: leg, leg2: leg,
+        hypotenuse: knownSide === 'hypotenuse' ? String(q) : radicalText(q, 2) };
+    }
+  }
+  const wrong = JSON.parse(JSON.stringify(answer));
+  const key = Object.keys(wrong)[0];
+  if (Array.isArray(wrong[key])) wrong[key][0] = String(Q(wrong[key][0]).add(1));
+  else if (topic === 'circle_arc' || topic === 'circle_sector') wrong[key] = `${wrong[key]} + 1`;
+  else wrong[key] = `${wrong[key]} + 1`;
+  const task = `Find the exact ${topic.replaceAll('_', ' ')} result.`;
+  return { input, task, expected: { kind: 'geometry_exact', topic, answer },
+    referenceSteps: [step(input, answer, 'exact_geometry_construction',
+      'Use exact rational coordinates, pi coefficients, or special-triangle side ratios.')],
+    intentional_errors: [mistake(input, wrong, 'incorrect_exact_measurement',
+      'The proposed exact coordinate or measurement differs from the computed result.')], restrictions: [] };
+}
+
+function structuredPrompt(input, task) {
+  if (input.kind === 'data_reasoning') {
+    if (input.topic === 'regression') return `${task} Paired observations: ` +
+      `${input.points.map(point => `(${point.join(', ')})`).join(', ')}` +
+      `${input.at === undefined ? '' : `; predict at x = ${input.at}`}.`;
+    return `${task} Table: ${input.table.map(row => `[${row.join(', ')}]`).join(' ')}.` +
+      `${input.event ? ` Event: ${input.event.axis} ${input.event.index + 1}; given: ${input.given.axis} ${input.given.index + 1}.` : ''}`;
+  }
+  if (input.points) return `${task} Points: ${input.points.map(point => `(${point.join(', ')})`).join(', ')}.`;
+  if (input.radius) return `${task} Radius ${input.radius}; central angle ${input.centralAngle}°.`;
+  return `${task} ${input.pattern}, given ${input.knownSide.replaceAll('_', ' ')} ${input.length}.`;
+}
+
 const FAMILIES = {
   linear, distribution, quadratic, rational_equation: rationalEquation,
   rational_function: rationalFunction, polynomial_simplification: polynomialSimplification,
@@ -376,6 +750,15 @@ const FAMILIES = {
   arithmetic_sequence: ctx => sequence(ctx, 'arithmetic'),
   geometric_sequence: ctx => sequence(ctx, 'geometric'),
   distance: ctx => geometry(ctx, 'distance'), pythagorean: ctx => geometry(ctx, 'pythagorean'),
+  trigonometry: ctx => precalculus(ctx, 'trigonometry'),
+  polar: ctx => precalculus(ctx, 'polar'), vector: ctx => precalculus(ctx, 'vector'),
+  regression: ctx => dataReasoning(ctx, 'regression'),
+  two_way_probability: ctx => dataReasoning(ctx, 'two_way_probability'),
+  perpendicular_bisector: ctx => exactGeometry(ctx, 'perpendicular_bisector'),
+  circumcircle: ctx => exactGeometry(ctx, 'circumcircle'),
+  circle_arc: ctx => exactGeometry(ctx, 'circle_arc'),
+  circle_sector: ctx => exactGeometry(ctx, 'circle_sector'),
+  special_right_triangle: ctx => exactGeometry(ctx, 'special_right_triangle'),
 };
 
 /** Deterministic templates propose reference paths; only a verifier can accept them. */
@@ -401,6 +784,9 @@ export function generateProblem(options = {}) {
   const generated = FAMILIES[topic]({ int, signed, score, magnitude });
   const estimate = estimateDifficulty(generated.input);
   const problem = typeof generated.input === 'string' ? `${generated.task} ${generated.input}`
+    : generated.input.kind === 'precalculus' ? precalculusPrompt(generated.input, generated.task)
+    : generated.input.kind === 'data_reasoning' || generated.expected.kind === 'geometry_exact'
+      ? structuredPrompt(generated.input, generated.task)
     : generated.input.kind === 'system' ? `${generated.task} ${generated.input.equations.join('; ')}`
     : generated.input.kind === 'sequence' ? `${generated.task} First term: ${generated.input.first}; ${generated.input.type === 'arithmetic' ? `common difference: ${generated.input.step}` : `common ratio: ${generated.input.ratio}`}.`
     : topic === 'distance' ? `${generated.task} ${generated.input.points.map(point => `(${point.join(', ')})`).join(' and ')}.`

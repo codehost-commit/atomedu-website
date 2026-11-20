@@ -1,5 +1,10 @@
 // Header scroll state, mobile menu, active nav, hero board carousel.
 (function () {
+  var path = location.pathname.replace(/\/+$/, '') || '/';
+  if (/\/index\.html$/i.test(path)) path = path.replace(/\/index\.html$/i, '') || '/';
+  else if (/\.html$/i.test(path)) path = path.replace(/\.html$/i, '');
+  if (path !== location.pathname) history.replaceState(null, '', path + location.search + location.hash);
+
   var header = document.querySelector('.site-header');
   function onScroll() { if (header) header.classList.toggle('scrolled', window.scrollY > 10); }
   window.addEventListener('scroll', onScroll, { passive: true });
@@ -12,10 +17,8 @@
     mobile.addEventListener('click', function (e) { if (e.target.tagName === 'A') mobile.classList.remove('open'); });
   }
 
-  var page = (location.pathname.split('/').pop() || 'index.html');
-  if (page === '') page = 'index.html';
   document.querySelectorAll('[data-nav]').forEach(function (a) {
-    if (a.getAttribute('data-nav') === page) a.classList.add('active');
+    if (a.getAttribute('data-nav') === path) a.classList.add('active');
   });
 
   // ----- hero board carousel -----
@@ -29,9 +32,17 @@
 
   function show(n) {
     i = (n + slides.length) % slides.length;
-    slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i); });
-    dots.forEach(function (d, k) { d.classList.toggle('on', k === i); });
-    if (creditEl) creditEl.textContent = credits[i];
+    slides.forEach(function (s, k) {
+      var active = k === i;
+      s.classList.toggle('is-active', active);
+      s.setAttribute('aria-hidden', String(!active));
+    });
+    dots.forEach(function (d, k) {
+      var active = k === i;
+      d.classList.toggle('on', active);
+      d.setAttribute('aria-current', active ? 'true' : 'false');
+    });
+    if (creditEl) creditEl.textContent = window.atomI18n ? window.atomI18n.translate(credits[i]) : credits[i];
   }
   function next() { show(i + 1); }
   function prev() { show(i - 1); }
@@ -59,7 +70,11 @@
 
   board.addEventListener('mouseenter', stop);
   board.addEventListener('mouseleave', start);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stop(); else start();
+  });
 
   show(0);
+  if (window.atomI18n) window.atomI18n.subscribe(function () { show(i); });
   start();
 })();

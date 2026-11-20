@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { difficultyToInt, formatDifficulty, tierForDifficulty, estimateDifficulty } from '../engine/difficulty.js';
 import { TOPICS, generateProblem } from '../engine/generator.js';
+import { generateProblem as generateVerifiedProblem, solve } from '../engine/index.js';
+import { solvePrecalculus, verifyPrecalculusCertificate } from '../engine/precalculus.js';
+import { solveDataReasoning, verifyDataReasoningCertificate } from '../engine/data-reasoning.js';
+import { solveGeometry, verifyGeometryCertificate } from '../engine/geometry.js';
 
 const SCORE_PATTERN = /^(0\.\d{3}|1\.000)$/;
 const BOUNDARIES = ['0.000', '0.249', '0.399', '0.400', '0.583', '0.649', '0.650', '1.000'];
@@ -169,14 +173,14 @@ test('learning scores and computational work are distinct and the calibration is
 });
 
 test('topic catalog and generator contracts are stable, reproducible, and unverified', () => {
-  assert.equal(TOPICS.length, 16);
+  assert.equal(TOPICS.length, 26);
   assert.equal(new Set(TOPICS.map(topic => topic.id)).size, TOPICS.length);
   assert.ok(Object.isFrozen(TOPICS));
   assert.deepEqual(generateProblem(), generateProblem({ topic: 'linear', difficulty: '0.500', seed: 0 }));
   for (const topic of TOPICS) {
     assert.deepEqual(Object.keys(topic).sort(), ['id', 'label', 'subject']);
     assert.ok(Object.isFrozen(topic));
-    assert.ok(['algebra_1', 'algebra_2', 'geometry'].includes(topic.subject));
+    assert.ok(['algebra_1', 'algebra_2', 'geometry', 'precalculus', 'data_reasoning'].includes(topic.subject));
     for (const difficulty of BOUNDARIES) {
       for (const seed of [0, -1, 2026, 0.25, '', 'class A 🧮']) {
         const options = { topic: topic.id, difficulty, seed };
@@ -226,7 +230,8 @@ test('topic catalog and generator contracts are stable, reproducible, and unveri
 test('aliases are canonical and invalid options fail explicitly', () => {
   const aliases = { linear_equation: 'linear', rational: 'rational_equation', polynomial: 'polynomial_simplification',
     system: 'systems', log: 'logarithmic', abs: 'absolute_value', inequality: 'inequalities',
-    arithmetic: 'arithmetic_sequence', geometric: 'geometric_sequence', pythagoras: 'pythagorean' };
+    arithmetic: 'arithmetic_sequence', geometric: 'geometric_sequence', pythagoras: 'pythagorean',
+    two_way_table: 'two_way_probability', conditional_probability: 'two_way_probability' };
   for (const [alias, topic] of Object.entries(aliases)) {
     assert.deepEqual(generateProblem({ topic: alias, seed: 'alias' }), generateProblem({ topic, seed: 'alias' }));
   }
@@ -351,8 +356,159 @@ for (const topic of TOPICS) {
             near(equationResidual(reference.after, { d: value, c: value }), 0, context);
           }
           assert.notEqual(Number(problem.intentional_errors[0].after.split(' = ')[1]), expected.value, context);
+        } else if (expected.kind === 'precalculus') {
+          assert.equal(input.kind, 'precalculus');
+          assert.equal(input.topic, topic.id);
+          assert.equal(expected.topic, topic.id);
+          assert.equal(expected.operation, input.operation);
+          assert.equal(expected.answer.exact, true);
+          assert.notDeepEqual(problem.intentional_errors[0].after, expected.answer);
+        } else if (expected.kind === 'data_reasoning') {
+          assert.equal(input.kind, 'data_reasoning');
+          assert.equal(expected.topic, input.topic);
+          assert.equal(expected.operation, input.operation);
+          assert.equal(expected.answer.exact, true);
+          assert.notDeepEqual(problem.intentional_errors[0].after, expected.answer);
+        } else if (expected.kind === 'geometry_exact') {
+          assert.equal(input.kind, 'geometry');
+          assert.equal(input.topic, topic.id);
+          assert.equal(expected.topic, topic.id);
+          assert.notDeepEqual(problem.intentional_errors[0].after, expected.answer);
         } else assert.fail(`Unhandled expected output: ${expected.kind}`);
       }
     }
   });
 }
+
+const PRECALCULUS_OPERATIONS = {
+  trigonometry: ['unit_circle', 'angle_sum', 'angle_difference', 'double_angle'],
+  polar: ['to_cartesian', 'rotate'],
+  vector: ['add', 'subtract', 'scale', 'dot', 'cross', 'norm', 'distance', 'projection', 'rotate'],
+};
+
+test('precalculus catalog proposes only publicly renderable exact operations', () => {
+  for (const [topic, operations] of Object.entries(PRECALCULUS_OPERATIONS)) {
+    assert.equal(TOPICS.find(item => item.id === topic)?.subject, 'precalculus');
+    const seen = new Set();
+    for (const difficulty of [...BOUNDARIES, '0.900']) for (let seed = 0; seed < 32; seed++) {
+      const options = { topic, difficulty, seed };
+      const raw = generateProblem(options);
+      assert.deepEqual(raw, generateProblem(options));
+      assert.equal(raw.input.kind, 'precalculus');
+      assert.equal(raw.input.topic, topic);
+      assert.ok(operations.includes(raw.input.operation), JSON.stringify(raw.input));
+      assert.equal(raw.expected.kind, 'precalculus');
+      assert.equal(raw.expected.operation, raw.input.operation);
+      assert.deepEqual(raw.referenceSteps[0].before, raw.input);
+      assert.deepEqual(raw.referenceSteps[0].after, raw.expected.answer);
+      assert.notDeepEqual(raw.intentional_errors[0].after, raw.expected.answer);
+      assert.ok(!JSON.stringify(raw).includes('"verified"'));
+      seen.add(raw.input.operation);
+    }
+    assert.deepEqual([...seen].sort(), [...operations].sort(), `${topic} operation coverage`);
+  }
+});
+
+test('the public facade independently solves, replays, and renders every generated answer', () => {
+  for (const topic of Object.keys(PRECALCULUS_OPERATIONS)) {
+    for (const difficulty of [...BOUNDARIES, '0.900']) for (let seed = 0; seed < 24; seed++) {
+      const options = { topic, difficulty, seed };
+      const raw = generateProblem(options);
+      const generated = generateVerifiedProblem(options);
+      const solved = solve(raw.input, { difficulty });
+      const context = `${topic}/${difficulty}/${seed}/${raw.input.operation}`;
+      assert.equal(solved.status, 'solved', `${context}: ${solved.error}`);
+      assert.equal(solved.verified, true, context);
+      assert.equal(solved.routing.finalEngine, 3, context);
+      assert.equal(solved.certificate.type, 'precalculus', context);
+      assert.equal(solved.certificate.assurance, 'exact-biquadratic-replay', context);
+      assert.equal(solved.latex.valid, true, context);
+      assert.deepEqual(raw.expected.answer, solved.answer, context);
+      assert.deepEqual(generated.expected.answer, solved.answer, context);
+      assert.equal(generated.verification.method, 'solve-and-replay-certificate', context);
+      assert.equal(generated.routing.finalEngine, 3, context);
+      assert.ok(generated.solution.every(step => step.verified), context);
+      const certificate = solvePrecalculus(raw.input);
+      assert.equal(verifyPrecalculusCertificate(raw.input, certificate), true, context);
+      const forged = structuredClone(certificate);
+      forged.certificate.evidence = { forged: true };
+      assert.equal(verifyPrecalculusCertificate(raw.input, forged), false, context);
+      assert.notDeepEqual(raw.intentional_errors[0].after, certificate.answer, context);
+    }
+  }
+});
+
+test('seed and exact difficulty remain distinct throughout the precalculus range', () => {
+  for (const topic of Object.keys(PRECALCULUS_OPERATIONS)) {
+    const sample = generateVerifiedProblem({ topic, difficulty: '0.583', seed: 'class A' });
+    assert.equal(sample.difficulty, '0.583');
+    assert.equal(sample.routing.difficulty, '0.583');
+    assert.equal(sample.features.intended_difficulty_score, 583);
+    assert.notEqual(sample.id, generateVerifiedProblem({ topic, difficulty: '0.584', seed: 'class A' }).id);
+    assert.notEqual(sample.id, generateVerifiedProblem({ topic, difficulty: '0.583', seed: 'class B' }).id);
+    assert.deepEqual(sample, generateVerifiedProblem({ topic, difficulty: '0.583', seed: 'class A' }));
+  }
+});
+
+const NEW_EXACT_TOPICS = ['regression', 'two_way_probability', 'perpendicular_bisector',
+  'circumcircle', 'circle_arc', 'circle_sector', 'special_right_triangle'];
+
+function geometryExactAnswer(answer) {
+  return Object.fromEntries(Object.entries(answer).map(([key, value]) => [key,
+    Array.isArray(value) ? value.map(part => part.exact)
+      : value && typeof value === 'object' ? value.exact : value]));
+}
+
+test('seeded data reasoning and exact geometry match independent public solves and certificates', () => {
+  const seen = new Map(NEW_EXACT_TOPICS.map(topic => [topic, new Set()]));
+  for (const topic of NEW_EXACT_TOPICS) {
+    for (const difficulty of [...BOUNDARIES, '0.900']) for (let seed = 0; seed < 24; seed++) {
+      const options = { topic, difficulty, seed };
+      const raw = generateProblem(options), generated = generateVerifiedProblem(options);
+      const solved = solve(raw.input, { difficulty });
+      const context = `${topic}/${difficulty}/${seed}`;
+      assert.deepEqual(raw, generateProblem(options), context);
+      assert.equal(solved.status, 'solved', `${context}: ${solved.error}`);
+      assert.equal(solved.verified, true, context);
+      assert.equal(solved.latex.valid, true, context);
+      assert.equal(solved.routing.finalEngine, topic === 'regression' || difficulty >= '0.650' ? 3 : 2, context);
+      assert.equal(generated.routing.finalEngine, solved.routing.finalEngine, context);
+      assert.equal(generated.verification.method, 'solve-and-replay-certificate', context);
+      assert.ok(generated.solution.every(step => step.verified), context);
+      assert.deepEqual(raw.referenceSteps[0].before, raw.input, context);
+      assert.notDeepEqual(raw.intentional_errors[0].after, raw.expected.answer, context);
+      if (raw.input.kind === 'data_reasoning') {
+        assert.deepEqual(raw.expected.answer, solved.answer, context);
+        const direct = solveDataReasoning(raw.input);
+        assert.equal(verifyDataReasoningCertificate(raw.input, direct), true, context);
+        const forged = structuredClone(direct); forged.answer.exact = false;
+        assert.equal(verifyDataReasoningCertificate(raw.input, forged), false, context);
+        seen.get(topic).add(raw.input.operation);
+      } else {
+        assert.deepEqual(raw.expected.answer, geometryExactAnswer(solved.answer), context);
+        const direct = solveGeometry(raw.input);
+        assert.equal(verifyGeometryCertificate(raw.input, direct), true, context);
+        const forged = structuredClone(direct); forged.answer.extra = true;
+        assert.equal(verifyGeometryCertificate(raw.input, forged), false, context);
+        if (topic === 'special_right_triangle') seen.get(topic).add(`${raw.input.pattern}/${raw.input.knownSide}`);
+      }
+    }
+  }
+  assert.deepEqual([...seen.get('regression')].sort(), ['correlation', 'fit']);
+  assert.deepEqual([...seen.get('two_way_probability')].sort(), ['conditional_probability', 'independence']);
+  assert.deepEqual([...seen.get('special_right_triangle')].sort(), [
+    '30-60-90/hypotenuse', '30-60-90/long_leg', '30-60-90/short_leg',
+    '45-45-90/hypotenuse', '45-45-90/leg',
+  ]);
+});
+
+test('new topics retain all three difficulty decimals and independent seeds', () => {
+  for (const topic of NEW_EXACT_TOPICS) {
+    const first = generateVerifiedProblem({ topic, difficulty: '0.650', seed: 'same' });
+    assert.equal(first.difficulty, '0.650');
+    assert.equal(first.features.intended_difficulty_score, 650);
+    assert.equal(first.routing.finalEngine, 3);
+    assert.notEqual(first.id, generateVerifiedProblem({ topic, difficulty: '0.651', seed: 'same' }).id);
+    assert.notEqual(first.id, generateVerifiedProblem({ topic, difficulty: '0.650', seed: 'other' }).id);
+  }
+});

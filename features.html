@@ -3,31 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Features | atomEDU</title>
-  <meta name="description" content="Explore Proof Lab's local math solver, step checker with Ghost steps, practice generator, visual LaTeX editor, and interactive graph." />
+  <title>Proof Lab Features | Math Solver, Step Checker and Graph</title>
+  <meta name="description" content="Explore atomEDU Proof Lab's in-house math engine, exact solver, step checker with Ghost steps, practice generator, visual editor, and interactive graph." />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <link rel="canonical" href="https://atom-edu.org/features" />
+  <meta property="og:type" content="website" /><meta property="og:site_name" content="atomEDU" /><meta property="og:title" content="Proof Lab Features | atomEDU" /><meta property="og:description" content="Exact solving, step verification, practice generation, and graphing powered by atomEDU's own math engine." /><meta property="og:url" content="https://atom-edu.org/features" /><meta property="og:image" content="https://atom-edu.org/images/atomedu-social.png" /><meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="images/logo.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poiret+One&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@1,9..144,400;0,9..144,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=proof-lab-2" />
+  <link rel="stylesheet" href="styles.css?v=proof-lab-4" />
 </head>
 <body>
 
   <!-- Header -->
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="index.html">
+      <a class="brand" href="/">
         <img class="mark" src="images/logo.svg" alt="" />
         <span class="word">atom<b>EDU</b></span>
       </a>
       <nav class="nav">
-        <a data-nav="index.html" href="index.html">Home</a>
-        <a data-nav="features.html" href="features.html">Features</a>
-        <a data-nav="learn.html" href="learn.html">Learn</a>
-        <a data-nav="proof-lab.html" href="proof-lab.html">Proof Lab</a>
-        <a data-nav="about.html" href="about.html">About</a>
-        <a data-nav="contact.html" href="contact.html">Contact</a>
-        <a class="cta" href="proof-lab.html">Start math</a>
+        <a data-nav="/" href="/">Home</a>
+        <a data-nav="/features" href="/features">Features</a>
+        <a data-nav="/learn" href="/learn">Learn</a>
+        <a data-nav="/art-contest" href="/art-contest">Art contest</a>
+        <a data-nav="/about" href="/about">About</a>
+        <a data-nav="/contact" href="/contact">Contact</a>
+        <a class="cta" href="/proof-lab">Start math</a>
       </nav>
       <button class="menu-btn" aria-label="Menu">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -35,13 +38,13 @@
     </div>
     <div class="mobile-nav">
       <div class="inner">
-        <a data-nav="index.html" href="index.html">Home</a>
-        <a data-nav="features.html" href="features.html">Features</a>
-        <a data-nav="learn.html" href="learn.html">Learn</a>
-        <a data-nav="proof-lab.html" href="proof-lab.html">Proof Lab</a>
-        <a data-nav="about.html" href="about.html">About</a>
-        <a data-nav="contact.html" href="contact.html">Contact</a>
-        <a class="cta" href="proof-lab.html">Start math</a>
+        <a data-nav="/" href="/">Home</a>
+        <a data-nav="/features" href="/features">Features</a>
+        <a data-nav="/learn" href="/learn">Learn</a>
+        <a data-nav="/art-contest" href="/art-contest">Art contest</a>
+        <a data-nav="/about" href="/about">About</a>
+        <a data-nav="/contact" href="/contact">Contact</a>
+        <a class="cta" href="/proof-lab">Start math</a>
       </div>
     </div>
   </header>
@@ -96,9 +99,9 @@
   <section class="section band">
     <div class="wrap col">
       <p class="kicker">Current coverage</p>
-      <h2 class="block-title heading-display">Algebra and geometry, with clear boundaries</h2>
-      <p class="classes"><span class="now">Proof Lab covers selected Algebra 1, Algebra 2, and geometry rule families.</span> It handles many equations, inequalities, functions, sequences, matrices, conics, coordinate problems, measurements, and explicit-premise proofs. It does not claim every problem in a full curriculum, and calculus notation is not a supported solver feature.</p>
-      <a class="textlink" href="proof-lab.html#coverage" style="margin-top:1.3rem;display:inline-flex">Open the coverage list
+      <h2 class="block-title heading-display">Algebra, geometry, and precalculus, with clear boundaries</h2>
+      <p class="classes"><span class="now">Proof Lab covers selected Algebra 1, Algebra 2, Geometry, and Precalculus rule families.</span> It handles many equations, inequalities, functions, sequences, matrices, conics, coordinate problems, measurements, and exact bounded trigonometry, polar, vector, and parametric operations. It does not claim every problem in a full curriculum, and calculus notation is not a supported solver feature.</p>
+      <a class="textlink" href="/proof-lab#coverage" style="margin-top:1.3rem;display:inline-flex">Open the coverage list
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>
@@ -116,8 +119,8 @@
             <h2 class="heading-display">Bring the math. Show the proof.</h2>
             <p>Solve a problem, check your own steps, or generate a new one. Proof Lab is free and runs in your browser.</p>
             <div class="actions">
-              <a class="btn btn-accent" href="proof-lab.html">Start math</a>
-              <a class="btn btn-light" href="features.html">See the features</a>
+              <a class="btn btn-accent" href="/proof-lab">Start math</a>
+              <a class="btn btn-light" href="/features">See the features</a>
             </div>
           </div>
         </div>
@@ -132,24 +135,24 @@
           <div>
             <h4>Product</h4>
             <ul>
-              <li><a href="proof-lab.html">Proof Lab</a></li>
-              <li><a href="features.html">Features</a></li>
-              <li><a href="learn.html">How it works</a></li>
+              <li><a href="/proof-lab">Proof Lab</a></li>
+              <li><a href="/features">Features</a></li>
+              <li><a href="/learn">How it works</a></li>
             </ul>
           </div>
           <div>
             <h4>Company</h4>
             <ul>
-              <li><a href="about.html">About</a></li>
-              <li><a href="contact.html">Contact</a></li>
+              <li><a href="/about">About</a></li>
+              <li><a href="/contact">Contact</a></li>
             </ul>
           </div>
           <div>
             <h4>Legal</h4>
             <ul>
-              <li><a href="legal.html#privacy">Privacy</a></li>
-              <li><a href="legal.html#terms">Terms</a></li>
-              <li><a href="legal.html#attributions">Attributions</a></li>
+              <li><a href="/legal#privacy">Privacy</a></li>
+              <li><a href="/legal#terms">Terms</a></li>
+              <li><a href="/legal#attributions">Attributions</a></li>
             </ul>
           </div>
         </div>
@@ -158,13 +161,14 @@
             <div class="footer-site">atom-edu.org</div>
             <span>&copy; <span id="yr"></span> atomEDU. Free for students.</span>
           </div>
-          <span>Maintained by Avuthu, Awasthi, Patel, and Sanikommu.</span>
+          <span>Maintained by Avuthu, Awasthi, and Sanikommu.</span>
         </div>
       </div>
     </div>
   </footer>
 
-  <script src="site.js"></script>
+  <script src="site-i18n.js?v=founders-3"></script>
+  <script src="site.js?v=proof-lab-4"></script>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 </body>
 </html>

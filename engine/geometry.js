@@ -3,6 +3,23 @@
  *
  * Measurements: { kind:'geometry', topic:'circle', operation:'area', radius:3 }.
  * Flat topics such as circle_area and cylinder_surface_area are also accepted.
+ * Exact coordinate families (supplied finite numbers are exact decimal inputs):
+ * transform {point:[x,y], transformation:'translation', dx,dy}, or vertices
+ * instead of point; reflection uses axis x, y, y=x, or y=-x; rotation uses
+ * degrees 0, 90, 180, or 270 about center; dilation uses positive factor and
+ * optional center. circle_relation {center, radius, point} classifies a point;
+ * circle_tangent with the same fields finds the tangent at a point on it.
+ * line_relation {line1:[[x,y],[x,y]], line2:[[x,y],[x,y]]} classifies two
+ * infinite lines and returns their unique intersection when one exists.
+ * triangle_similarity {triangle1:[[x,y],...], triangle2:[[x,y],...]}
+ * compares the three corresponding vertices in the listed order.
+ * circle_arc / circle_sector {radius, centralAngle} use degrees in [0,360]
+ * and return exact rational multiples of pi. special_right_triangle
+ * {pattern:'30-60-90'|'45-45-90', knownSide, length} uses the named triangle
+ * as a supplied hypothesis; knownSide is short_leg, long_leg, hypotenuse for
+ * 30-60-90, or leg, hypotenuse for 45-45-90.
+ * perpendicular_bisector {points:[[x,y],[x,y]]} and circumcircle with
+ * three noncollinear points return exact coordinate constructions.
  * Numeric values are approximations; `exact` contains an unevaluated exact
  * expression in the supplied decimal inputs. Reported angles are in degrees;
  * trigonometric arguments such as pi/n are in radians.
@@ -12,6 +29,13 @@
  * triangle_congruent [[A,B,C],[D,E,F]]; midpoint [M,A,B];
  * between [A,M,B]; collinear [A,B,C]; parallel [A,B,C,D];
  * right_angle [A,B,C]; supplementary [[A,B,C],[D,E,F]].
+ * perpendicular [A,B,C,D] asserts two nonzero perpendicular lines;
+ * circle_tangent_at [O,P,Q] asserts PQ tangent at P to the circle centered O;
+ * inscribed_same_arc [[A,B,C],[A,E,C]] asserts both inscribed angles
+ * intercept the same arc of one circle (the endpoint pair must match).
+ * pythagorean_relation [A,B,C] asserts AB² + BC² = AC².
+ * triangle_similar [[A,B,C],[D,E,F]] fixes corresponding vertex order;
+ * segment_ratio_equal [A,B,D,E,B,C,E,F] asserts AB/DE = BC/EF.
  * vertical_angles / linear_pair take two angle triples. Parallel position
  * facts alternate_interior_angles / corresponding_angles /
  * same_side_interior_angles take [angle1,angle2,line1,line2]. They explicitly
@@ -23,6 +47,8 @@
  */
 
 const VERSION = 1;
+const EXACT_TOPICS = new Set(['transform', 'circle_relation', 'circle_tangent', 'line_relation', 'triangle_similarity', 'perpendicular_bisector', 'circumcircle']);
+const EXACT_SYMBOLIC_TOPICS = new Set(['circle_arc', 'circle_sector', 'special_right_triangle']);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const alias = (table, key) => own(table, key) ? table[key] : key;
 const isObject = o => o !== null && typeof o === 'object' && !Array.isArray(o);
@@ -46,15 +72,17 @@ function measurement(value, exact, unit) {
   return { value: Object.is(value, -0) ? 0 : value, exact, approximate: true, ...(unit ? { unit } : {}) };
 }
 function result(status, topic, answer, steps = [], error) {
+  const exact = EXACT_TOPICS.has(topic);
+  const symbolic = EXACT_SYMBOLIC_TOPICS.has(topic);
   return {
     status, verified: status === 'solved', topic, answer, steps, restrictions: [],
     certificate: {
       version: VERSION,
-      method: topic === 'proof' ? 'explicit-euclidean-rules' : 'formula-recomputation',
-      assurance: topic === 'proof' ? 'symbolic-rule-check' : 'numerical-formula-check',
+      method: topic === 'proof' ? 'explicit-euclidean-rules' : exact ? 'exact-rational-recomputation' : symbolic ? 'exact-symbolic-recomputation' : 'formula-recomputation',
+      assurance: topic === 'proof' ? 'symbolic-rule-check' : exact ? 'exact-rational-check' : symbolic ? 'exact-symbolic-check' : 'numerical-formula-check',
       ...(status === 'solved' && topic !== 'proof' ? {
         numericValues: 'approximate',
-        exactExpressions: 'Unevaluated expressions in supplied decimal inputs; pi is exact, trig arguments in radians, reported angles in degrees.',
+        exactExpressions: exact ? 'Reduced rational values of supplied finite decimal inputs; predicates are checked with exact rational arithmetic.' : symbolic ? 'Reduced rational coefficients of exact pi or square-root constants from supplied finite decimal inputs.' : 'Unevaluated expressions in supplied decimal inputs; pi is exact, trig arguments in radians, reported angles in degrees.',
       } : {}),
     },
     ...(error ? { error } : {}),
@@ -333,6 +361,229 @@ function compareDecimalSum(values, target) {
   return left === right ? 0 : left < right ? -1 : 1;
 }
 
+// Finite JavaScript numbers are interpreted as their printed decimal values.
+// All predicates and exact coordinates below use reduced BigInt fractions.
+function rational(n, d = 1n) {
+  requireThat(d !== 0n, 'A rational denominator cannot be zero.');
+  if (d < 0n) { n = -n; d = -d; }
+  let a = n < 0n ? -n : n, b = d;
+  while (b !== 0n) { const t = a % b; a = b; b = t; }
+  return { n: n / a, d: d / a };
+}
+const decimalRational = n => rational(...decimalFraction(n));
+const addR = (a, b) => rational(a.n * b.d + b.n * a.d, a.d * b.d);
+const subR = (a, b) => rational(a.n * b.d - b.n * a.d, a.d * b.d);
+const mulR = (a, b) => rational(a.n * b.n, a.d * b.d);
+const divR = (a, b) => rational(a.n * b.d, a.d * b.n);
+const equalR = (a, b) => a.n * b.d === b.n * a.d;
+const compareR = (a, b) => { const diff = a.n * b.d - b.n * a.d; return diff < 0n ? -1 : diff > 0n ? 1 : 0; };
+const exactR = a => a.d === 1n ? String(a.n) : `${a.n}/${a.d}`;
+function valueR(a) {
+  if (a.n === 0n) return 0;
+  const digits = (a.n < 0n ? -a.n : a.n).toString(), divisor = a.d.toString();
+  const numerator = Number(digits.slice(0, 17)) / 10 ** (Math.min(17, digits.length) - 1);
+  const denominator = Number(divisor.slice(0, 17)) / 10 ** (Math.min(17, divisor.length) - 1);
+  return Number(`${a.n < 0n ? '-' : ''}${numerator / denominator}e${digits.length - divisor.length}`);
+}
+function rationalMeasurement(a) {
+  const value = valueR(a);
+  requireThat(Number.isFinite(value) && (a.n === 0n || value !== 0), 'The exact result is outside the supported numerical range.');
+  return measurement(value, exactR(a));
+}
+function exactRadius(input) {
+  const supplied = [input.radius, input.r].filter(v => v !== undefined);
+  const radii = supplied.map(v => decimalRational(positive(v, 'radius')));
+  if (radii.length === 2) requireThat(equalR(radii[0], radii[1]), 'Radius aliases disagree.');
+  const diameter = input.diameter === undefined ? null : decimalRational(positive(input.diameter, 'diameter'));
+  if (radii.length && diameter) requireThat(equalR(mulR(radii[0], rational(2n)), diameter), 'Radius and diameter disagree.');
+  requireThat(radii.length || diameter, 'A positive radius or diameter is required.');
+  return radii[0] ?? divR(diameter, rational(2n));
+}
+function piMeasurement(coefficient) {
+  const value = valueR(coefficient) * Math.PI;
+  requireThat(Number.isFinite(value) && (coefficient.n === 0n || value > 0), 'The pi measurement is outside the supported numerical range.');
+  return measurement(value, coefficient.n === 0n ? '0' : coefficient.d === 1n && coefficient.n === 1n ? 'pi' : `(${exactR(coefficient)}) * pi`);
+}
+function radicalMeasurement(coefficient, root = 1) {
+  const value = valueR(coefficient) * Math.sqrt(root);
+  requireThat(Number.isFinite(value) && value > 0, 'The radical measurement is outside the supported numerical range.');
+  return measurement(value, root === 1 ? exactR(coefficient) : `(${exactR(coefficient)}) * sqrt(${root})`);
+}
+function rationalPoint(raw, name) { return point(raw, name).map(decimalRational); }
+const subPoint = (a, b) => [subR(a[0], b[0]), subR(a[1], b[1])];
+const crossR = (a, b) => subR(mulR(a[0], b[1]), mulR(a[1], b[0]));
+const dotR = (a, b) => addR(mulR(a[0], b[0]), mulR(a[1], b[1]));
+const squaredR = a => dotR(a, a);
+const pointMeasurements = a => a.map(rationalMeasurement);
+function exactPoints(input, count) {
+  requireThat(Array.isArray(input.points) && input.points.length === count, `Exactly ${count} points are required.`);
+  return input.points.map((p, i) => rationalPoint(p, `points[${i}]`));
+}
+
+function perpendicularBisector(input) {
+  const [a, b] = exactPoints(input, 2), normal = subPoint(b, a);
+  requireThat(normal.some(c => c.n !== 0n), 'The two points must be distinct.');
+  const midpoint = [0, 1].map(i => divR(addR(a[i], b[i]), rational(2n)));
+  const equation = `(${exactR(normal[0])}) * (x - (${exactR(midpoint[0])})) + (${exactR(normal[1])}) * (y - (${exactR(midpoint[1])})) = 0`;
+  return solved('perpendicular_bisector', input, { midpoint: pointMeasurements(midpoint), normal: pointMeasurements(normal), equation },
+    'perpendicular_bisector_exact', 'The perpendicular bisector passes through the exact midpoint with the original segment as its normal.');
+}
+
+function circumcircle(input) {
+  const [a, b, c] = exactPoints(input, 3), u = subPoint(b, a), v = subPoint(c, a);
+  const determinant = crossR(u, v);
+  requireThat(determinant.n !== 0n, 'Three noncollinear points are required for a unique circumcircle.');
+  const half = rational(2n);
+  const midpointAB = [0, 1].map(i => divR(addR(a[i], b[i]), half));
+  const midpointAC = [0, 1].map(i => divR(addR(a[i], c[i]), half));
+  const rhs1 = dotR(u, midpointAB), rhs2 = dotR(v, midpointAC);
+  const center = [
+    divR(subR(mulR(rhs1, v[1]), mulR(u[1], rhs2)), determinant),
+    divR(subR(mulR(u[0], rhs2), mulR(rhs1, v[0])), determinant),
+  ];
+  const radiusSquared = squaredR(subPoint(center, a));
+  const equation = `(x - (${exactR(center[0])}))^2 + (y - (${exactR(center[1])}))^2 = ${exactR(radiusSquared)}`;
+  return solved('circumcircle', input, { center: pointMeasurements(center), radiusSquared: rationalMeasurement(radiusSquared), equation },
+    'circumcircle_exact', 'Intersect two exact perpendicular bisectors of the triangle sides; the common squared distance is the radius squared.');
+}
+
+function circleArcSector(input, topic) {
+  const r = exactRadius(input), degrees = decimalRational(number(input.centralAngle, 'centralAngle'));
+  requireThat(compareR(degrees, rational(0n)) >= 0 && compareR(degrees, rational(360n)) <= 0, 'centralAngle must be between 0 and 360 degrees.');
+  const arcCoefficient = divR(mulR(r, degrees), rational(180n));
+  const answer = { arcLength: piMeasurement(arcCoefficient) };
+  if (topic === 'circle_sector') answer.area = piMeasurement(divR(mulR(mulR(r, r), degrees), rational(360n)));
+  return solved(topic, input, answer, topic === 'circle_arc' ? 'arc_length_exact' : 'sector_area_exact', 'An arc is theta/360 of the circumference and a sector is theta/360 of the disk; reduce their rational pi coefficients exactly.');
+}
+
+function specialRightTriangle(input) {
+  requireThat(typeof input.pattern === 'string' && input.pattern.trim(), 'pattern is required.');
+  requireThat(typeof input.knownSide === 'string' && input.knownSide.trim(), 'knownSide is required.');
+  const pattern = token(input.pattern), known = token(input.knownSide);
+  if (!['30_60_90', '45_45_90'].includes(pattern)) return result('unsupported', 'special_right_triangle', {}, [], 'Supported patterns are 30-60-90 and 45-45-90.');
+  const roles = pattern === '30_60_90' ? ['short_leg', 'long_leg', 'hypotenuse'] : ['leg', 'hypotenuse'];
+  if (!roles.includes(known)) return result('unsupported', 'special_right_triangle', {}, [], 'Unsupported known side for this pattern.');
+  const length = decimalRational(positive(input.length, 'length'));
+  const two = rational(2n), three = rational(3n);
+  let answer;
+  if (pattern === '30_60_90') {
+    const short = known === 'short_leg' ? [length, 1] : known === 'hypotenuse' ? [divR(length, two), 1] : [divR(length, three), 3];
+    const long = known === 'long_leg' ? [length, 1] : [short[0], 3];
+    const hyp = known === 'hypotenuse' ? [length, 1] : [mulR(short[0], two), short[1]];
+    answer = { shortLeg: radicalMeasurement(...short), longLeg: radicalMeasurement(...long), hypotenuse: radicalMeasurement(...hyp) };
+  } else {
+    const leg = known === 'leg' ? [length, 1] : [divR(length, two), 2];
+    answer = { leg1: radicalMeasurement(...leg), leg2: radicalMeasurement(...leg), hypotenuse: known === 'hypotenuse' ? radicalMeasurement(length) : radicalMeasurement(length, 2) };
+  }
+  const output = solved('special_right_triangle', input, answer, `${pattern}_side_ratios`, 'Use the exact 1:sqrt(3):2 or 1:1:sqrt(2) side ratio of the supplied right-triangle pattern.');
+  output.restrictions.push('The named right-triangle angle pattern and the supplied side role are assumptions.');
+  return output;
+}
+
+function transform(input) {
+  const single = own(input, 'point');
+  requireThat(single !== own(input, 'vertices'), 'Supply either point or vertices.');
+  const source = single ? [rationalPoint(input.point, 'point')] : (() => {
+    requireThat(Array.isArray(input.vertices) && input.vertices.length >= 1 && input.vertices.length <= 1000, 'vertices must contain 1 to 1000 points.');
+    return input.vertices.map((p, i) => rationalPoint(p, `vertices[${i}]`));
+  })();
+  const zero = rational(0n), center = input.center === undefined ? [zero, zero] : rationalPoint(input.center, 'center');
+  const kind = token(input.transformation ?? input.operation);
+  let apply, restriction;
+  if (kind === 'translation') {
+    requireThat(input.center === undefined, 'Translation does not use a center.');
+    const dx = decimalRational(number(input.dx, 'dx')), dy = decimalRational(number(input.dy, 'dy'));
+    apply = p => [addR(p[0], dx), addR(p[1], dy)];
+  } else if (kind === 'reflection') {
+    const axis = String(input.axis ?? '').toLowerCase().replace(/\s+/g, '');
+    const reflect = { x: ([x, y]) => [x, rational(-y.n, y.d)], y: ([x, y]) => [rational(-x.n, x.d), y], 'y=x': ([x, y]) => [y, x], 'y=-x': ([x, y]) => [rational(-y.n, y.d), rational(-x.n, x.d)] };
+    if (!own(reflect, axis)) return result('unsupported', 'transform', {}, [], 'Supported reflection axes are x, y, y=x, and y=-x.');
+    requireThat(input.center === undefined, 'Reflection axes pass through the origin; center is not applicable.');
+    apply = reflect[axis]; restriction = 'The reflection axis passes through the origin.';
+  } else if (kind === 'rotation') {
+    const degrees = number(input.degrees, 'degrees');
+    if (!Number.isSafeInteger(degrees) || degrees % 90 !== 0) return result('unsupported', 'transform', {}, [], 'Only rotations by whole multiples of 90 degrees are supported.');
+    const quarter = ((degrees / 90) % 4 + 4) % 4;
+    apply = p => {
+      const [x, y] = subPoint(p, center), neg = a => rational(-a.n, a.d);
+      const rotated = quarter === 0 ? [x, y] : quarter === 1 ? [neg(y), x] : quarter === 2 ? [neg(x), neg(y)] : [y, neg(x)];
+      return [addR(center[0], rotated[0]), addR(center[1], rotated[1])];
+    };
+    restriction = 'Positive rotation is counterclockwise; only whole quarter turns are supported.';
+  } else if (kind === 'dilation') {
+    const factor = decimalRational(positive(input.factor ?? input.scaleFactor, 'factor'));
+    apply = p => [0, 1].map(i => addR(center[i], mulR(factor, subR(p[i], center[i]))));
+    restriction = 'A positive scale factor preserves orientation.';
+  } else return result('unsupported', 'transform', {}, [], 'Unsupported transformation.');
+  const images = source.map(p => pointMeasurements(apply(p)));
+  const output = solved('transform', input, single ? { image: images[0] } : { images }, `${kind}_exact`, 'Apply the transformation to each coordinate using exact decimal rational arithmetic.');
+  if (restriction) output.restrictions.push(restriction);
+  return output;
+}
+
+function circleRelation(input) {
+  const center = rationalPoint(input.center, 'center'), p = rationalPoint(input.point, 'point');
+  const r = decimalRational(radius(input));
+  const distanceSquared = squaredR(subPoint(p, center)), radiusSquared = mulR(r, r);
+  const comparison = compareR(distanceSquared, radiusSquared);
+  return solved('circle_relation', input, {
+    position: comparison < 0 ? 'inside' : comparison > 0 ? 'outside' : 'on',
+    distanceSquared: rationalMeasurement(distanceSquared), radiusSquared: rationalMeasurement(radiusSquared),
+    power: rationalMeasurement(subR(distanceSquared, radiusSquared)),
+  }, 'circle_power_exact', 'Compare the exact squared distance to the exact squared radius.');
+}
+
+function circleTangent(input) {
+  const center = rationalPoint(input.center, 'center'), p = rationalPoint(input.point, 'point');
+  const r = decimalRational(radius(input)), normal = subPoint(p, center);
+  requireThat(equalR(squaredR(normal), mulR(r, r)), 'The tangent point must lie exactly on the circle.');
+  const equation = `(${exactR(normal[0])}) * (x - (${exactR(p[0])})) + (${exactR(normal[1])}) * (y - (${exactR(p[1])})) = 0`;
+  return solved('circle_tangent', input, {
+    point: pointMeasurements(p), normal: pointMeasurements(normal), equation,
+  }, 'circle_tangent_exact', 'At a point on a circle, the tangent is perpendicular to the radius; its exact normal is point minus center.');
+}
+
+function lineRelation(input) {
+  const line = (raw, name) => {
+    requireThat(Array.isArray(raw) && raw.length === 2, `${name} requires two points.`);
+    return raw.map((p, i) => rationalPoint(p, `${name}[${i}]`));
+  };
+  const [p, p2] = line(input.line1, 'line1'), [q, q2] = line(input.line2, 'line2');
+  const u = subPoint(p2, p), v = subPoint(q2, q);
+  requireThat(u.some(c => c.n !== 0n) && v.some(c => c.n !== 0n), 'Each line requires distinct points.');
+  const determinant = crossR(u, v), dot = dotR(u, v);
+  let relation, intersection = null;
+  if (determinant.n === 0n) relation = crossR(subPoint(q, p), u).n === 0n ? 'coincident' : 'parallel';
+  else {
+    relation = dot.n === 0n ? 'perpendicular' : 'intersecting';
+    const t = divR(crossR(subPoint(q, p), v), determinant);
+    intersection = pointMeasurements([addR(p[0], mulR(t, u[0])), addR(p[1], mulR(t, u[1]))]);
+  }
+  return solved('line_relation', input, { relation, intersection, determinantExact: exactR(determinant), dotProductExact: exactR(dot) }, 'line_relation_exact', 'Use exact cross and dot products; solve the two line equations when their determinant is nonzero.');
+}
+
+function triangleSimilarity(input) {
+  const triangle = (raw, name) => {
+    requireThat(Array.isArray(raw) && raw.length === 3, `${name} requires three vertices.`);
+    const p = raw.map((v, i) => rationalPoint(v, `${name}[${i}]`));
+    requireThat(crossR(subPoint(p[1], p[0]), subPoint(p[2], p[0])).n !== 0n, `${name} must be nondegenerate.`);
+    return p;
+  };
+  const a = triangle(input.triangle1, 'triangle1'), b = triangle(input.triangle2, 'triangle2');
+  const lengths = p => [[0, 1], [1, 2], [2, 0]].map(([i, j]) => squaredR(subPoint(p[i], p[j])));
+  const aa = lengths(a), bb = lengths(b), ratio = divR(bb[0], aa[0]);
+  const similar = [1, 2].every(i => equalR(bb[i], mulR(ratio, aa[i])));
+  const scale = Math.sqrt(valueR(ratio));
+  requireThat(!similar || Number.isFinite(scale) && scale > 0, 'The scale factor is outside the supported numerical range.');
+  const output = solved('triangle_similarity', input, {
+    similar,
+    scaleFactor: similar ? measurement(scale, `sqrt(${exactR(ratio)})`) : null,
+    areaFactor: similar ? rationalMeasurement(ratio) : null,
+  }, 'sss_similarity_exact', 'Compare corresponding squared side ratios exactly; a common positive ratio proves SSS similarity.');
+  output.restrictions.push('Vertices correspond in their supplied order; both triangles must be nondegenerate.');
+  return output;
+}
+
 const permutations = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
 const factAliases = { congruent_segments: 'segment_equal', equal_segments: 'segment_equal', congruent_angles: 'angle_equal', equal_angles: 'angle_equal', congruent_triangles: 'triangle_congruent', triangles_congruent: 'triangle_congruent' };
 function pointName(p) { return typeof p === 'string' && p.length > 0 && p.length <= 100 && p.trim() === p; }
@@ -347,22 +598,28 @@ function fact(raw) {
   let key;
   if (p === 'triangle' || p === 'collinear') {
     requireThat(tuple(a, 3), `${p} requires three distinct point names.`); key = segKey(a);
-  } else if (p === 'segment_equal' || p === 'parallel') {
+  } else if (p === 'segment_equal' || p === 'parallel' || p === 'perpendicular') {
     requireThat(a.length === 4 && tuple(a.slice(0, 2), 2) && tuple(a.slice(2), 2), `${p} requires two nonzero segments.`);
-    if (p === 'parallel') requireThat(segKey(a.slice(0, 2)) !== segKey(a.slice(2)), 'Parallel lines must be distinct.');
+    if (p === 'parallel' || p === 'perpendicular') requireThat(segKey(a.slice(0, 2)) !== segKey(a.slice(2)), `${p} lines must be distinct.`);
     key = pairKey(segKey(a.slice(0, 2)), segKey(a.slice(2)));
+  } else if (p === 'segment_ratio_equal') {
+    requireThat(a.length === 8 && [0, 2, 4, 6].every(i => tuple(a.slice(i, i + 2), 2)), 'segment_ratio_equal requires four nonzero segments.');
+    const ratio1 = JSON.stringify([segKey(a.slice(0, 2)), segKey(a.slice(2, 4))]);
+    const ratio2 = JSON.stringify([segKey(a.slice(4, 6)), segKey(a.slice(6, 8))]);
+    key = pairKey(ratio1, ratio2);
   } else if (p === 'angle_equal') {
     requireThat(a.length === 6 && tuple(a.slice(0, 3), 3) && tuple(a.slice(3), 3), 'angle_equal requires two angle triples.');
     key = pairKey(angleKey(a.slice(0, 3)), angleKey(a.slice(3)));
-  } else if (p === 'triangle_congruent') {
-    requireThat(a.length === 2 && tuple(a[0], 3) && tuple(a[1], 3), 'triangle_congruent requires two ordered triangle triples.');
+  } else if (p === 'triangle_congruent' || p === 'triangle_similar') {
+    requireThat(a.length === 2 && tuple(a[0], 3) && tuple(a[1], 3), `${p} requires two ordered triangle triples.`);
     key = permutations.map(order => pairKey(JSON.stringify(order.map(i => a[0][i])), JSON.stringify(order.map(i => a[1][i])))).sort()[0];
   } else if (p === 'midpoint') {
     requireThat(tuple(a, 3), 'midpoint requires [M,A,B] with distinct points.'); key = JSON.stringify([a[0], segKey(a.slice(1))]);
   } else if (p === 'between') {
     requireThat(tuple(a, 3), 'between requires [A,M,B] with distinct points.'); key = JSON.stringify([a[1], segKey([a[0], a[2]])]);
-  } else if (p === 'right_angle') {
-    requireThat(tuple(a, 3), 'right_angle requires an angle triple.'); key = angleKey(a);
+  } else if (p === 'right_angle' || p === 'pythagorean_relation' || p === 'circle_tangent_at') {
+    requireThat(tuple(a, 3), `${p} requires three distinct point names.`);
+    key = p === 'circle_tangent_at' ? JSON.stringify(a) : angleKey(a);
   } else if (['supplementary', 'vertical_angles', 'linear_pair'].includes(p)) {
     requireThat(a.length === 2 && tuple(a[0], 3) && tuple(a[1], 3), `${p} requires two angle triples.`);
     if (p !== 'supplementary') requireThat(angleKey(a[0]) !== angleKey(a[1]), `${p} requires distinct angles.`);
@@ -372,6 +629,10 @@ function fact(raw) {
     requireThat(segKey(a[2]) !== segKey(a[3]), 'A parallel position fact requires distinct lines.');
     requireThat(angleKey(a[0]) !== angleKey(a[1]), 'A parallel position fact requires distinct angles.');
     key = JSON.stringify([pairKey(angleKey(a[0]), angleKey(a[1])), pairKey(segKey(a[2]), segKey(a[3]))]);
+  } else if (p === 'inscribed_same_arc') {
+    requireThat(a.length === 2 && tuple(a[0], 3) && tuple(a[1], 3), 'inscribed_same_arc requires two inscribed angle triples.');
+    requireThat(segKey([a[0][0], a[0][2]]) === segKey([a[1][0], a[1][2]]) && angleKey(a[0]) !== angleKey(a[1]), 'Inscribed angles must have distinct vertices and the same arc endpoints.');
+    key = pairKey(angleKey(a[0]), angleKey(a[1]));
   } else throw new GeometryError(`Unsupported proof predicate: ${p}.`);
   return { predicate: p, args: a.map(v => Array.isArray(v) ? [...v] : v), key: `${p}:${key}` };
 }
@@ -391,6 +652,42 @@ function congruenceRule(rule, target, premises) {
   if (rule === 'sss') return edge(0, 1) && edge(1, 2) && edge(2, 0);
   if (rule === 'sas') return [0, 1, 2].some(i => angle(i) && edge(i, (i + 1) % 3) && edge(i, (i + 2) % 3));
   return [[0, 1, 2], [1, 2, 0], [2, 0, 1]].some(([i, j, k]) => angle(i) && angle(j) && (rule === 'asa' ? edge(i, j) : edge(i, k) || edge(j, k)));
+}
+function similarityRule(rule, target, premises) {
+  if (target.predicate !== 'triangle_similar') return false;
+  const [a, b] = target.args;
+  if (!contains(premises, 'triangle', a) || !contains(premises, 'triangle', b)) return false;
+  const angle = i => contains(premises, 'angle_equal', [...angleAt(a, i), ...angleAt(b, i)]);
+  const ratio = (first, second) => contains(premises, 'segment_ratio_equal', [
+    ...segment(a, ...first), ...segment(b, ...first), ...segment(a, ...second), ...segment(b, ...second),
+  ]);
+  if (rule === 'aa_similarity') return [0, 1, 2].filter(angle).length >= 2;
+  const edges = [[0, 1], [1, 2], [2, 0]];
+  if (rule === 'sss_similarity') return ratio(edges[0], edges[1]) && ratio(edges[0], edges[2]);
+  return [0, 1, 2].some(i => angle(i) && ratio([i, (i + 1) % 3], [i, (i + 2) % 3]));
+}
+function similarityConsequence(target, premises) {
+  return premises.filter(f => f.predicate === 'triangle_similar').some(f => {
+    const [a, b] = f.args;
+    if (target.predicate === 'angle_equal') return [0, 1, 2].some(i => equalParts(target, 'angle_equal', angleAt(a, i), angleAt(b, i)));
+    if (target.predicate !== 'segment_ratio_equal') return false;
+    const edges = [[0, 1], [1, 2], [2, 0]];
+    return edges.some((first, i) => edges.slice(i + 1).some(second => target.key === makeFact('segment_ratio_equal', [
+      ...segment(a, ...first), ...segment(b, ...first), ...segment(a, ...second), ...segment(b, ...second),
+    ]).key));
+  });
+}
+function parallelPerpendicular(target, premises) {
+  if (target.predicate !== 'perpendicular') return false;
+  return premises.filter(f => f.predicate === 'parallel').some(f => {
+    const lines = [f.args.slice(0, 2), f.args.slice(2, 4)];
+    return premises.filter(g => g.predicate === 'perpendicular').some(g => {
+      const perpendicularLines = [g.args.slice(0, 2), g.args.slice(2, 4)];
+      return [0, 1].some(i => [0, 1].some(j => segKey(lines[i]) === segKey(perpendicularLines[j]) &&
+        segKey(lines[1 - i]) !== segKey(perpendicularLines[1 - j]) &&
+        target.key === makeFact('perpendicular', [...lines[1 - i], ...perpendicularLines[1 - j]]).key));
+    });
+  });
 }
 function cpctc(target, premises) {
   return premises.filter(f => f.predicate === 'triangle_congruent').some(f => {
@@ -417,7 +714,23 @@ function transitive(target, premises) {
 }
 function applyRule(rule, target, premises) {
   if (['sss', 'sas', 'asa', 'aas'].includes(rule)) return congruenceRule(rule, target, premises);
+  if (['aa_similarity', 'sss_similarity', 'sas_similarity'].includes(rule)) return similarityRule(rule, target, premises);
   if (rule === 'cpctc') return cpctc(target, premises);
+  if (rule === 'similarity_correspondence') return similarityConsequence(target, premises);
+  if (rule === 'congruence_implies_similarity') return target.predicate === 'triangle_similar' &&
+    contains(premises, 'triangle', target.args[0]) && contains(premises, 'triangle', target.args[1]) &&
+    premises.some(f => f.predicate === 'triangle_congruent' && makeFact('triangle_similar', f.args).key === target.key);
+  if (rule === 'parallel_perpendicular') return parallelPerpendicular(target, premises);
+  if (rule === 'tangent_radius_perpendicular') return premises.filter(f => f.predicate === 'circle_tangent_at').some(f => {
+    const [o, p, q] = f.args;
+    return target.key === makeFact('perpendicular', [o, p, p, q]).key || target.key === makeFact('right_angle', [o, p, q]).key;
+  });
+  if (rule === 'inscribed_same_arc') return premises.filter(f => f.predicate === 'inscribed_same_arc').some(f => equalParts(target, 'angle_equal', f.args[0], f.args[1]));
+  if (rule === 'pythagorean_theorem' || rule === 'pythagorean_converse') {
+    const desired = rule === 'pythagorean_theorem' ? 'pythagorean_relation' : 'right_angle';
+    const source = rule === 'pythagorean_theorem' ? 'right_angle' : 'pythagorean_relation';
+    return target.predicate === desired && contains(premises, 'triangle', target.args) && contains(premises, source, target.args);
+  }
   if (rule === 'given' || rule === 'reiteration' || rule === 'symmetric') return premises.some(f => f.key === target.key);
   if (rule === 'transitive') return transitive(target, premises);
   if (rule === 'reflexive') {
@@ -465,11 +778,17 @@ export function verifyGeometryProof(proof) {
     requireThat(proof.givens.length <= 1000 && proof.steps.length <= 1000, 'A proof may contain at most 1000 givens and 1000 steps.');
     const givens = proof.givens.map(fact), established = [], outputSteps = [];
     const goal = fact(proof.goal);
-    // These are incompatible Euclidean assertions about the same point triple.
+    // Reject contradictions visible from named triples and named line pairs.
     const compatible = facts => {
-      const noncollinear = new Set(facts.filter(f => f.predicate === 'triangle').map(f => segKey(f.args)));
+      const noncollinear = new Set();
+      for (const f of facts) {
+        if (['triangle', 'right_angle', 'pythagorean_relation', 'circle_tangent_at'].includes(f.predicate)) noncollinear.add(segKey(f.args));
+        if (['triangle_congruent', 'triangle_similar', 'inscribed_same_arc'].includes(f.predicate)) f.args.forEach(triple => noncollinear.add(segKey(triple)));
+      }
       const collinear = facts.filter(f => ['collinear', 'between', 'midpoint'].includes(f.predicate));
       requireThat(collinear.every(f => !noncollinear.has(segKey(f.args))), 'The proof asserts both a triangle and collinearity of the same points.');
+      const parallels = new Set(facts.filter(f => f.predicate === 'parallel').map(f => f.key.slice('parallel:'.length)));
+      requireThat(facts.filter(f => f.predicate === 'perpendicular').every(f => !parallels.has(f.key.slice('perpendicular:'.length))), 'The same named lines cannot be both parallel and perpendicular.');
     };
     compatible(givens);
     for (let i = 0; i < proof.steps.length; i++) {
@@ -532,6 +851,15 @@ export function solveGeometry(raw) {
     if (['distance', 'midpoint', 'slope', 'line'].includes(topic)) return coordinate(input, topic);
     if (topic === 'circle_equation') return circleEquation(input);
     if (topic === 'similarity') return similarity(input);
+    if (topic === 'transform') return transform(input);
+    if (topic === 'circle_relation') return circleRelation(input);
+    if (topic === 'circle_tangent') return circleTangent(input);
+    if (topic === 'circle_arc' || topic === 'circle_sector') return circleArcSector(input, topic);
+    if (topic === 'line_relation') return lineRelation(input);
+    if (topic === 'triangle_similarity') return triangleSimilarity(input);
+    if (topic === 'perpendicular_bisector') return perpendicularBisector(input);
+    if (topic === 'circumcircle') return circumcircle(input);
+    if (topic === 'special_right_triangle') return specialRightTriangle(input);
     if (topic === 'angles') return relatedAngle(input);
     if (topic === 'proof') return verifyGeometryProof(input.proof ?? input);
     return result('unsupported', topic, {}, [], `Unsupported geometry topic: ${topic}.`);

@@ -41,6 +41,60 @@ for (const [input, expected] of absCases) test(`absolute-value intervals: ${inpu
   assert.equal(out.answer.solutionSet, expected);
 });
 
+test('rational equations retain canceled holes and certify exact irrational roots', () => {
+  const cases = [
+    ['x+1=2', ['1']],
+    ['x^3-3x^2+2x=0', ['0', '1', '2']],
+    ['(x^2-2)(x^2+x-1)=0', ['(-1/2 - sqrt(5/4))', '-sqrt(2)', '(-1/2 + sqrt(5/4))', 'sqrt(2)']],
+    ['(x^2-2)^12=0', ['-sqrt(2)', 'sqrt(2)']],
+    ['1/(x^2-2)=1', ['-sqrt(3)', 'sqrt(3)']],
+    ['(x^2-2)/(x^2-3)=0', ['-sqrt(2)', 'sqrt(2)']],
+    ['(x^2-1)/(x-1)=2', []],
+  ];
+  for (const [input, expected] of cases) {
+    const out = solutions(input, expected);
+    assert.equal(out.topic, 'rational_equation');
+  }
+  const identity = solved('(x^2-2)/(x^2-2)=1');
+  assert.equal(identity.answer.identity, true);
+  assert.equal(identity.answer.solutionSet, 'All real numbers except {-sqrt(2), sqrt(2)}');
+  assert(identity.restrictions.includes('x^2 - 2 != 0'));
+  const product = solved('(x^2-2)(x^2+x-1)=0');
+  assert.equal(product.steps[0].rule, 'exact_zero_product');
+  assert.equal(product.certificate.evidence.factors.length, 2);
+  const forged = structuredClone(identity);
+  forged.answer.solutionSet = 'All real numbers';
+  assert.equal(verifyAdvancedCertificate('(x^2-2)/(x^2-2)=1', forged), false);
+});
+
+test('rational sign charts order unlike quadratic radicals and preserve poles and holes', () => {
+  const cases = [
+    ['x^2-2<0', '(-sqrt(2), sqrt(2))'],
+    ['x^2-2>=0', '(-∞, -sqrt(2)] ∪ [sqrt(2), ∞)'],
+    ['(x^2-2)/(x^2-3)>0', '(-∞, -sqrt(3)) ∪ (-sqrt(2), sqrt(2)) ∪ (sqrt(3), ∞)'],
+    ['(x^2-2)/(x^2-3)>=0', '(-∞, -sqrt(3)) ∪ [-sqrt(2), sqrt(2)] ∪ (sqrt(3), ∞)'],
+    ['(x^2-2x-1)/(x^2-3)>0', '(-∞, -sqrt(3)) ∪ ((1 - sqrt(2)), sqrt(3)) ∪ ((1 + sqrt(2)), ∞)'],
+    ['(x-1)/(x^2-2)<=0', '(-∞, -sqrt(2)) ∪ [1, sqrt(2))'],
+    ['(x^2-1)/(x-1)>0', '(-1, 1) ∪ (1, ∞)'],
+    ['x/x>0', '(-∞, 0) ∪ (0, ∞)'],
+    ['x^2>=0', '(-∞, ∞)'],
+    ['-x^2>=0', '{0}'],
+    ['0/(x^2-2)>=0', '(-∞, -sqrt(2)) ∪ (-sqrt(2), sqrt(2)) ∪ (sqrt(2), ∞)'],
+    ['(x^2-2)/(x^2-2)>=0', '(-∞, -sqrt(2)) ∪ (-sqrt(2), sqrt(2)) ∪ (sqrt(2), ∞)'],
+    ['(x^2-2)/(x^2-3)!=0', '(-∞, -sqrt(3)) ∪ (-sqrt(3), -sqrt(2)) ∪ (-sqrt(2), sqrt(2)) ∪ (sqrt(2), sqrt(3)) ∪ (sqrt(3), ∞)'],
+  ];
+  for (const [input, expected] of cases) {
+    const out = solved(input);
+    assert.equal(out.topic, 'rational_inequality');
+    assert.equal(out.answer.solutionSet, expected);
+    assert.equal(out.answer.complete, true);
+  }
+  const input = '(x^2-2)/(x^2-3)>0', out = solved(input), forged = structuredClone(out);
+  forged.certificate.evidence.regionSigns[1] *= -1;
+  assert.equal(verifyAdvancedCertificate(input, forged), false);
+  assert(['unsupported', 'unresolved'].includes(solveAdvanced('x^4-2<0').status));
+});
+
 test('absolute-value affine families keep exact fractional endpoints and renamed variables', () => {
   for (const a of [-5, -2, 1, 3]) for (const b of [-3, 0, 4]) {
     const out = solved(`2abs(${a}t+(${b}))+1<=7`, { variable: 't' });
@@ -301,7 +355,7 @@ test('invalid inputs and impossible intrinsic domains never acquire verified cer
 });
 
 test('unsupported families, parameters, and unresolved eliminations remain honest fallbacks', () => {
-  const inputs = ['x+1=2', 'sin(x)=0', 'abs(x)+abs(x-1)<2', 'abs(x^2)<2',
+  const inputs = ['sin(x)=0', 'abs(x)+abs(x-1)<2', 'abs(x^2)<2',
     'x^4+x-2=0', 'sqrt(x)+sqrt(x+1)=3', '2^x=3^x', 'log(x,2)=log(x,3)',
     'root(x,3)+root(x+1,3)=2', 'a*x^4-2=0',
     { kind: 'polynomial_division', dividend: '(x^2-1)/(x-1)', divisor: 'x+1' },

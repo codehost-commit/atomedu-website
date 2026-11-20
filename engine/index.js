@@ -2,26 +2,32 @@ import { MathError, parseStatement, parseExpression, rationalFunction, polynomia
 import { solveEquation, simplifyExpression, solveInequality, solveSystem, functionAnalysis, buildLinearSystem } from './algebra.js';
 import { verifyAlgebraResult, verifyCertificate, verifyTransition as verifyTransitionInternal } from './verifier.js';
 import { checkWork as checkWorkInternal } from './work.js';
-import { solveGeometry, parseGeometry, verifyGeometryProof, verifyGeometryCertificate } from './geometry.js';
-import { generateProblem as generateRawProblem, TOPICS } from './generator.js';
+import { solveGeometry, parseGeometry, verifyGeometryProof, verifyGeometryCertificate } from './geometry.js?v=proof-lab-18';
+import { generateProblem as generateRawProblem, TOPICS } from './generator.js?v=proof-lab-18';
 import { estimateDifficulty, difficultyToInt, formatDifficulty, tierForDifficulty } from './difficulty.js';
 import { solveExtension, verifyExtensionCertificate } from './extensions.js';
-import { solveConic, verifyConicCertificate } from './conics.js';
-import { solveAdvanced, verifyAdvancedCertificate } from './advanced-algebra.js';
+import { solveConic, verifyConicCertificate } from './conics.js?v=proof-lab-18';
+import { solveAdvanced, verifyAdvancedCertificate } from './advanced-algebra.js?v=proof-lab-18';
 import { isCompoundInequality, solveCompoundInequality, verifyCompoundCertificate } from './compound-inequalities.js';
-import { latexToInput, toLatex, validateLatex, formatResultLatex } from './latex.js';
+import { latexToInput, toLatex, validateLatex, formatResultLatex } from './latex.js?v=proof-lab-18';
 import { solveLiteralEquation, verifyLiteralCertificate } from './literal-equations.js';
 import { solveFiniteAggregate, verifyFiniteAggregate } from './finite-aggregates.js';
 import { solvePiecewise, verifyPiecewiseCertificate } from './piecewise.js';
+import { solvePrecalculus, verifyPrecalculusCertificate } from './precalculus.js';
+import { solvePrecalcFunctions, verifyPrecalcFunctionsCertificate } from './precalc-functions.js';
+import { solveDataReasoning, verifyDataReasoningCertificate } from './data-reasoning.js';
+import { solveParametric, verifyParametricCertificate } from './parametric.js';
+import { parseWordProblem, solveWordProblem, verifyWordProblemCertificate } from './word-problems.js';
+import { solveTrigModels, verifyTrigModelsCertificate } from './trig-models.js';
 
-export { verifyCertificate, solveGeometry, verifyGeometryProof, solveConic, TOPICS, estimateDifficulty, difficultyToInt, formatDifficulty, tierForDifficulty, latexToInput, toLatex, validateLatex };
+export { verifyCertificate, solveGeometry, verifyGeometryProof, solveConic, solvePrecalculus, solvePrecalcFunctions, solveDataReasoning, solveParametric, solveTrigModels, parseWordProblem, solveWordProblem, TOPICS, estimateDifficulty, difficultyToInt, formatDifficulty, tierForDifficulty, latexToInput, toLatex, validateLatex };
 export { parseExpression, parseStatement, evaluate, print, Rational, Q } from './core.js';
 
 const EXTENSIONS = new Set(['sequence', 'matrix', 'statistics', 'combinatorics', 'evaluate', 'complex']);
 const algebraExtensionInput = prepared => ({ kind: /\bi\b|\di\b/.test(prepared.text) ? 'complex' : 'evaluate', expression: prepared.text });
 function bareOutput(output) { const candidate = { ...output }; delete candidate.routing; delete candidate.input; delete candidate.latex; delete candidate.notation; return candidate; }
 function normalizeMathInput(input) {
-  if (typeof input === 'string') return latexToInput(input, { allowPlain: true });
+  if (typeof input === 'string') return parseWordProblem(input) || latexToInput(input, { allowPlain: true });
   if (input && typeof input === 'object' && !Array.isArray(input)) {
     const out = { ...input };
     for (const key of ['expression', 'equation', 'dividend', 'divisor', 'f', 'g']) if (typeof out[key] === 'string') out[key] = latexToInput(out[key], { allowPlain: true });
@@ -66,6 +72,9 @@ function requiredTier(input) {
   if (input.kind === 'conic') return 3;
   if (['compound_inequality', 'polynomial_division', 'function_operation', 'literal_equation', 'piecewise'].includes(input.kind)) return 3;
   if (input.kind === 'finite_aggregate') return 2;
+  if (['precalculus', 'precalc_functions', 'parametric', 'trig_models'].includes(input.kind)) return 3;
+  if (input.kind === 'data_reasoning') return input.topic === 'regression' ? 3 : 2;
+  if (input.kind === 'word_problem') return input.type === 'mixture' ? 3 : 2;
   if (input.kind === 'geometry') return input.topic === 'proof' ? 3 : ['circle', 'rectangle', 'triangle_angles', 'pythagoras', 'pythagorean'].includes(input.topic) ? 1 : 2;
   if (EXTENSIONS.has(input.kind)) return ['matrix', 'complex'].includes(input.kind) ? 3 : 1;
   if (input.kind !== 'algebra') throw new MathError(`Unsupported request kind: ${String(input.kind)}.`);
@@ -87,6 +96,12 @@ function dispatch(input, options) {
   if (input.kind === 'literal_equation') return solveLiteralEquation(input);
   if (input.kind === 'finite_aggregate') return solveFiniteAggregate(input);
   if (input.kind === 'piecewise') return solvePiecewise(input);
+  if (input.kind === 'precalculus') return solvePrecalculus(input);
+  if (input.kind === 'precalc_functions') return solvePrecalcFunctions(input);
+  if (input.kind === 'data_reasoning') return solveDataReasoning(input);
+  if (input.kind === 'parametric') return solveParametric(input);
+  if (input.kind === 'word_problem') return solveWordProblem(input);
+  if (input.kind === 'trig_models') return solveTrigModels(input);
   if (['polynomial_division', 'function_operation'].includes(input.kind)) return solveAdvanced(input, options);
   if (EXTENSIONS.has(input.kind)) return solveExtension(input);
   if (input.kind !== 'algebra') throw new MathError(`Unsupported request kind: ${String(input.kind)}.`);
@@ -117,6 +132,12 @@ const REPLAY_KERNELS = Object.freeze(Object.assign(Object.create(null), {
   geometry: verifyGeometryCertificate, conic: verifyConicCertificate,
   literal_equation: verifyLiteralCertificate, compound_inequality: verifyCompoundCertificate,
   finite_aggregate: verifyFiniteAggregate, piecewise: verifyPiecewiseCertificate,
+  precalculus: verifyPrecalculusCertificate,
+  precalc_functions: verifyPrecalcFunctionsCertificate,
+  data_reasoning: verifyDataReasoningCertificate,
+  parametric: verifyParametricCertificate,
+  word_problem: verifyWordProblemCertificate,
+  trig_models: verifyTrigModelsCertificate,
 }));
 function verifyPreparedReport(prepared, output) {
   const report = bareOutput(output);
@@ -209,14 +230,15 @@ export function generateProblem(options = {}) {
 export function getCapabilities() {
   return {
     architecture: 'Owned deterministic symbolic engine; no language model, API key, CDN, or network required.',
-    algebra_1: ['Exact rational arithmetic and percentages', 'Distribution, polynomial expansion, and multivariable common factors', 'Linear equations and compound inequalities', 'Literal formula rearrangement with zero-coefficient parameter cases', 'Linear systems including parameterized solutions', 'Quadratics', 'Absolute value equations and inequalities', 'Arithmetic sequences'],
+    algebra_1: ['Exact rational arithmetic and percentages', 'Distribution, polynomial expansion, and multivariable common factors', 'Linear equations and compound inequalities', 'Literal formula rearrangement with zero-coefficient parameter cases', 'Linear systems including parameterized solutions', 'Quadratics', 'Absolute value equations and inequalities', 'Arithmetic sequences', 'Strictly matched fee/rate, consecutive-integer, discount, and mixture word-problem templates'],
     algebra_2: ['Polynomial division and rational factoring including cubic identities', 'Rational equations with domain restrictions', 'Quadratic radicals, complex roots, and biquadratic equations', 'Polynomial roots via rational factors and quadratic remainders', 'Radicals, nth roots, and rational powers with parity conditions', 'Logarithm product/quotient laws and equal-base exponentials', 'Rational, quadratic, and elementary function analysis', 'Function composition, evaluation, and supported inverses', 'Selected nonlinear systems using exact elimination', 'Piecewise polynomial domains, ranges, and first-match evaluation', 'Axis-aligned conics with exact square completion', 'Finite sums/products and geometric sequences', 'Matrices', 'Complex arithmetic'],
-    geometry: ['Angles and triangles', 'Pythagorean theorem', 'Similarity', 'Coordinate distance, midpoint, slope, and line equations', 'Circle equations', '2D areas and perimeters', '3D volumes and surface areas', 'Explicit-premise Euclidean proof rules'],
-    additional: ['Exact summary statistics', 'Combinations, permutations, and factorials', 'Expression evaluation'],
+    geometry: ['Angles and triangles', 'Pythagorean theorem', 'Similarity and special right-triangle ratios', 'Coordinate distance, midpoint, slope, and line equations', 'Exact-rational coordinate transformations and line relations', 'Circle equations, tangent lines, arcs and sectors', 'Exact perpendicular-bisector and circumcircle constructions from coordinates', '2D areas and perimeters', '3D volumes and surface areas', 'Explicit-premise Euclidean congruence, similarity, circle, and perpendicular proof rules'],
+    precalculus: ['Exact unit-circle values on the pi/12 grid', 'Finite-interval sine, cosine, and tangent equations for exact grid targets', 'Angle sum, difference, and double-angle identities', 'Exact bounded sinusoidal amplitude, period, range, and phase analysis', 'Selected principal inverse trig and angle-specific reciprocal/cofunction/Pythagorean checks', 'Selected exact polar conversions and rotations', 'Exact two- and three-dimensional vector arithmetic, dot/cross products, norms, and projection', 'Exact difference quotients and average rates for bounded polynomial/rational functions', 'Selected rational-root polynomial and rational-function analysis', 'Bounded exact exponential/logarithmic model rules', 'Exact bounded polynomial parametric evaluation, motion, and Cartesian elimination'],
+    additional: ['Exact summary statistics', 'Exact least-squares line and correlation for bounded rational paired data', 'Two-way table conditional probability and independence', 'Bounded combinatorial probability', 'Combinations, permutations, and factorials', 'Expression evaluation'],
     notation: { input: 'Visual LaTeX math fields with templates and placeholders', renderer: 'Locally bundled MathLive and KaTeX; neither is the mathematical authority', validation: 'Owned grammar bridge plus bounded real LaTeX parser checks; completeness, display support, and proof validity are separate', output: 'Every public solver report carries replayable renderer-validated LaTeX fragments' },
-    graphing: { features: ['Multiple editable expressions', 'Explicit and implicit curves', 'Inequality shading', 'Parameter sliders', 'Drag pan, wheel/pinch zoom, and keyboard navigation', 'Coordinate tracing, editable windows, and PNG export'], assurance: 'Numerical exploration, never a mathematical proof', hosting: 'Local assets with no paid API, account, or remote runtime dependency' },
+    graphing: { features: ['Multiple editable expressions', 'Explicit and implicit curves', 'Bounded numerical polar and parametric curves', 'Inequality shading', 'Linear/logarithmic x and y scales and a circular polar grid', 'Parameter sliders', 'Drag pan, wheel/pinch zoom, and keyboard navigation', 'Coordinate tracing, editable windows, and PNG export'], assurance: 'Numerical exploration, never a mathematical proof', hosting: 'Local assets with no paid API, account, or remote runtime dependency' },
     proofChecking: { accepted: 'Exact identities, supported solution-set equivalence, and explicit geometry rules', ghosts: 'Bounded search for a verified linear path or rational-factor polynomial bridge; corrections are labeled separately', measurements: 'Geometry measurement numbers are approximations with exact formula expressions, not arbitrary formal proofs' },
     difficulty: { format: 'String with exactly three decimal places', bounds: ['0.000', '1.000'], engines: ['[0.000, 0.400)', '[0.400, 0.650)', '[0.650, 1.000]'], calibration: 'Nonlinear heuristic; educational difficulty is separate from computation cost' },
-    limits: ['No unrestricted natural-language or handwritten parsing', 'No inference of unmarked facts from a geometry picture', 'No complete general solver for arbitrary transcendental or high-degree equations', 'No empirically established percentage of curriculum coverage; use a separately curated benchmark', 'Unsupported and budget-limited inputs are never accepted as verified solutions'],
+    limits: ['No unrestricted natural-language or handwritten parsing', 'No inference of unmarked facts from a geometry picture', 'No complete general solver for arbitrary transcendental or high-degree equations', 'Precalculus trigonometry and polar rules currently cover only exact pi/12-grid angles, not the full course', 'No empirically established percentage of curriculum coverage; use a separately curated benchmark', 'Unsupported and budget-limited inputs are never accepted as verified solutions'],
   };
 }

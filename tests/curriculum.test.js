@@ -7,8 +7,8 @@ import { solve, verifyResult } from '../engine/index.js';
 
 const report = runCurriculumBenchmark();
 
-test('local acceptance map contains 40–50 coherent families with at least two directly authored cases each', () => {
-  assert.ok(CURRICULUM_FAMILIES.length >= 40 && CURRICULUM_FAMILIES.length <= 50);
+test('local acceptance map contains 40–60 coherent families with at least two directly authored cases each', () => {
+  assert.ok(CURRICULUM_FAMILIES.length >= 40 && CURRICULUM_FAMILIES.length <= 60);
   assert.equal(new Set(CURRICULUM_FAMILIES.map(f => f.id)).size, CURRICULUM_FAMILIES.length);
   for (const family of CURRICULUM_FAMILIES) {
     assert.ok(family.id && family.label && family.subject);
@@ -55,13 +55,20 @@ for (const family of report.families) {
   }
 }
 
-test('all four explicitly unsupported subject families remain in the denominator', () => {
-  for (const id of ['word-problem-parsing', 'rotated-conics', 'general-transcendentals', 'sophisticated-nonlinear']) {
+test('remaining explicitly unsupported subject families stay in the denominator', () => {
+  for (const id of ['word-problem-parsing', 'general-transcendentals', 'sophisticated-nonlinear']) {
     const family = report.families.find(f => f.id === id);
     assert.ok(family);
     assert.ok(family.cases.every(c => c.classification === 'known_gap'));
     assert.equal(family.success, false);
   }
+});
+
+test('rotated conic acceptance uses fixed exact expected geometry', () => {
+  const family = report.families.find(f => f.id === 'rotated-conics');
+  assert.ok(family);
+  assert.ok(family.cases.every(c => c.classification === 'accepted'));
+  assert.ok(family.cases.every(c => c.actual.verified && c.actual.latexValid));
 });
 
 test('coverage and outcome totals use every local family and case, with no gap credit', () => {

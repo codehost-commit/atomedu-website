@@ -72,6 +72,14 @@ test('functions, logarithm bases, constants, absolute values, and implicit produ
   for (const command of ['le', 'leq', 'ge', 'geq', 'ne', 'neq']) assert.equal(validateLatex(`x\\${command} 1`).valid, true);
 });
 
+test('unbraced trig coefficient belongs to its variable, not a following linear factor', () => {
+  assert.equal(latexToInput(TEX`\sin3x`), 'sin(3x)');
+  assert.equal(latexToInput(TEX`\sin(3)x`), 'sin(3)x');
+  assert.equal(latexToInput(TEX`\sin3\cdot x`), 'sin(3)*x');
+  sameValue(TEX`\sin3x`, 1, { x: Math.PI / 6 });
+  sameValue(TEX`\sin3x^{2}`, Math.sin(12), { x: 2 });
+});
+
 test('chained comparisons and logical commands preserve the source chain and exact interval meaning', () => {
   const chain = TEX`-2\le x\le3`;
   assert.equal(latexToInput(chain), '-2<=x<=3');
@@ -481,6 +489,65 @@ test('geometry measurements and explicit proof facts show lengths and angles as 
   const result = solve(input), metadata = assertMetadata(input, result);
   assert.match(metadata.answer, /\\overline\{AB\}/);
   assert.match(toLatex({ predicate: 'angle_equal', args: ['A', 'B', 'C', 'D', 'E', 'F'] }), /\\angle ABC = \\angle DEF/);
+});
+
+test('precalculus requests and exact answers display the main trig, polar, and vector values', () => {
+  const request = (topic, operation, fields) => ({ kind: 'precalculus', topic, operation, ...fields });
+  const cases = [
+    [request('trigonometry', 'unit_circle', { angle: '1/6' }), /\\theta = \\frac\{\\pi\}\{6\}/, /\\cos\\theta.*\\sin\\theta.*\\tan\\theta/s],
+    [request('trigonometry', 'unit_circle', { angle: '1/2' }), /\\theta = \\frac\{\\pi\}\{2\}/, /\\tan\\theta &= \\text\{undefined\}/],
+    [request('trigonometry', 'angle_sum', { angleA: '1/6', angleB: '1/4' }), /\\frac\{\\pi\}\{6\} \+ \\frac\{\\pi\}\{4\}/, /\\theta &= \\frac\{5\\pi\}\{12\}/],
+    [request('trigonometry', 'angle_difference', { angleA: '1/4', angleB: '1/6' }), /\\frac\{\\pi\}\{4\} - \\frac\{\\pi\}\{6\}/, /\\tan\\theta/],
+    [request('trigonometry', 'double_angle', { angle: '1/12' }), /2\\theta/, /\\cos\\theta/],
+    [request('trigonometry', 'solve_equation', { function: 'sin', target: '1/2', interval: { lower: 0, upper: 2 } }), /\\sin\\left\(\\theta\\right\).*\\theta \\in/s, /\\theta \\in \\left\\\{\\frac\{\\pi\}\{6\}, \\frac\{5\\pi\}\{6\}\\right\\\}/],
+    [request('trigonometry', 'solve_equation', { function: 'sin', target: 2, interval: { lower: 0, upper: 2 } }), /\\sin/, /\\theta \\in \\varnothing/],
+    [request('polar', 'to_cartesian', { radius: 2, angle: '1/6' }), /\\left\(r,\\theta\\right\)/, /\\left\(x,y\\right\) &= \\left\(\\sqrt\{3\}, 1\\right\)/],
+    [request('polar', 'to_polar', { point: [1, 1] }), /\\left\(x,y\\right\)/, /\\left\(\\sqrt\{2\}, \\frac\{\\pi\}\{4\}\\right\)/],
+    [request('polar', 'to_polar', { point: [0, 0] }), /\\left\(0, 0\\right\)/, /angle chosen by convention/],
+    [request('polar', 'rotate', { point: [1, 0], angle: '1/2' }), /\\operatorname\{rotate\}/, /\\left\\langle 0, 1 \\right\\rangle/],
+    [request('polar', 'polar_product', { first: { radius: 2, angle: '1/6' }, second: { radius: 3, angle: '1/3' } }), /\\cdot/, /\\left\(x,y\\right\) &= \\left\(0, 6\\right\)/],
+    [request('vector', 'add', { a: [1, 2], b: [3, 4] }), /\\langle 1, 2/, /\\langle 4, 6/],
+    [request('vector', 'subtract', { a: [1, 2], b: [3, 4] }), / - /, /\\langle -2, -2/],
+    [request('vector', 'dot', { a: [1, 2], b: [3, 4] }), /\\cdot/, /^11$/],
+    [request('vector', 'cross', { a: [1, 2], b: [3, 4] }), /\\times/, /^-2$/],
+    [request('vector', 'cross', { a: [1, 0, 0], b: [0, 1, 0] }), /\\times/, /\\langle 0, 0, 1/],
+    [request('vector', 'scale', { a: [1, 2], factor: '3/2' }), /\\frac\{3\}\{2\}/, /\\langle \\frac\{3\}\{2\}, 3/],
+    [request('vector', 'norm', { a: [1, 1] }), /\\lVert/, /^\\sqrt\{2\}$/],
+    [request('vector', 'distance', { a: [1, 2], b: [4, 6] }), /^d\\left/, /^5$/],
+    [request('vector', 'projection', { a: [2, 2], b: [1, 0] }), /\\operatorname\{proj\}/, /\\langle 2, 0/],
+    [request('vector', 'rotate', { a: [1, 0], angle: '1/2' }), /\\operatorname\{rotate\}/, /\\langle 0, 1/],
+  ];
+  for (const [input, inputPattern, answerPattern] of cases) {
+    const report = solve(input);
+    assert.equal(report.status, 'solved', JSON.stringify(input));
+    const original = structuredClone(report);
+    const metadata = assertMetadata(input, report);
+    assert.match(metadata.input, inputPattern);
+    assert.match(metadata.answer, answerPattern);
+    assert.doesNotMatch(metadata.answer, /coefficients|rational|sqrt2|sqrt3|sqrt6|dimension|exact/);
+    assert.equal(verifyResult(input, report), true);
+    assert.deepEqual(report, original, 'Formatting must preserve the certificate and answer.');
+  }
+});
+
+test('precalculus coefficient inputs render as safe exact scalars', () => {
+  const input = { kind: 'precalculus', topic: 'vector', operation: 'dot',
+    a: [{ rational: '1/2', sqrt2: 1 }, 0], b: [2, 0] };
+  const result = solve(input), metadata = assertMetadata(input, result);
+  assert.equal(result.status, 'solved');
+  assert.match(metadata.input, /\\frac\{1\}\{2\} \+ \\sqrt\{2\}/);
+  assert.match(metadata.answer, /\\sqrt\{2\}/);
+  assert.doesNotMatch(metadata.input, /rational|sqrt2/);
+  assert.equal(verifyResult(input, result), true);
+  for (const source of [
+    { kind: 'precalculus', topic: 'trigonometry', operation: 'unit_circle', angle: TEX`\\href{https://bad.example}{x}` },
+    { kind: 'precalculus', topic: 'vector', operation: 'scale', a: [1, 2], factor: { sqrt2: TEX`\\def\\x{1}` } },
+    { exact: true, expression: TEX`\\htmlStyle{color:red}{x}`, coefficients: { rational: '1' } },
+  ]) {
+    const latex = toLatex(source);
+    assert.doesNotMatch(latex, /\\(?:href|def|htmlStyle)\b/);
+    renders(latex);
+  }
 });
 
 test('raw geometry theorem strings and premise lists preserve triangle, angle, and segment notation', () => {

@@ -1,6 +1,6 @@
 # Verified Math Engine
 
-This engine runs entirely in Node or a browser. Its own parser, exact arithmetic, symbolic transformations, generator, and verification rules work without a model or remote service. LaTeX input uses locally bundled MathLive, and notation validation/typesetting uses locally bundled KaTeX. The UI is [Math Lab](../math-lab.html); the public module is [index.js](./index.js).
+This engine runs entirely in Node or a browser. Its own parser, exact arithmetic, symbolic transformations, generator, and verification rules work without a model or remote service. LaTeX input uses locally bundled MathLive, and notation validation/typesetting uses locally bundled KaTeX. The UI is [Proof Lab](../proof-lab.html); the public module is [index.js](./index.js).
 
 ## Visual LaTeX and notation validation
 
@@ -88,6 +88,8 @@ Supported algebra includes rational simplification, polynomial expansion, ration
 
 Additional exact strategies handle compound inequalities, scaled absolute-value inequalities, biquadratic substitution, rational powers with odd/even-root branch conditions, logarithm product/quotient laws, equal-base exponentials, polynomial division, function operations, and selected two-equation nonlinear systems. Factoring preserves irreducible remainders and extracts multivariable common factors. Function ranges account for removable holes, including missing quadratic vertices and repeated preimages.
 
+A separate bounded word-problem grammar accepts fully matched English fee/rate, consecutive-integer, discount, and mixture templates. It records extracted facts and units, solves with exact rational arithmetic, then replays the claimed answer against the original model. Other prose is not guessed or labeled verified. The Solve panel offers an optional word-problem input under advanced options.
+
 ```js
 solve('a*x+b=c', { variable: 'x' }); // Parameter conditions and zero-coefficient branches.
 solve({ kind: 'polynomial_division', dividend: 'x^3+2x+1', divisor: 'x-1' });
@@ -127,6 +129,32 @@ solve({ kind: 'complex', expression: '(2+3i)/(1-i)' });
 
 Scalar extensions return canonical exact strings in `answer.value`. Matrix results also expose `answer.matrix`; statistics report population and sample moments distinctly. Unsupported transcendental evaluations retain the substituted expression and an explicitly unverified numerical preview. The facade never promotes that preview into an accepted proof.
 
+Structured `data_reasoning` requests add bounded exact regression, correlation, two-way table probabilities, independence checks, and combinatorial probabilities. They use rational arithmetic (or an exact radical expression for a correlation), with full certificate replay. These are specific data-rule families, not a natural-language statistics or modeling solver.
+
+```js
+solve({ kind: 'data_reasoning', topic: 'regression', operation: 'fit', points: [[0, 1], [1, 3], [2, 5]], at: '5/2' });
+solve({ kind: 'data_reasoning', topic: 'two_way_table', operation: 'conditional_probability', table: [[12, 8], [3, 7]], event: { axis: 'row', index: 0 }, given: { axis: 'column', index: 1 } });
+```
+
+## Exact Precalculus subset
+
+Structured `precalculus`, `precalc_functions`, `trig_models`, and `parametric` requests enter Engine 3 and replay separate exact certificates. Angles are rational multiples of pi on a pi/12 grid; scalar arithmetic uses exact rational combinations of 1, sqrt(2), sqrt(3), and sqrt(6). Supported operations include unit-circle values, selected trigonometric equations on finite intervals, angle identities, sinusoidal models, principal inverse trig values, polar conversions/rotations, vectors, polynomial/rational rates of change and analysis, and bounded exponential/logarithmic models. These are bounded rule families, not the entirety of any Precalculus course.
+
+```js
+solve({ kind: 'precalculus', topic: 'trigonometry', operation: 'unit_circle', angle: '1/6' });
+solve({ kind: 'precalculus', topic: 'trigonometry', operation: 'solve_equation', function: 'sin', target: '1/2', interval: { lower: 0, upper: 2 } });
+solve({ kind: 'precalculus', topic: 'polar', operation: 'to_cartesian', radius: 2, angle: '1/4' });
+solve({ kind: 'precalculus', topic: 'vector', operation: 'dot', a: [1, 2], b: [3, 4] });
+solve({ kind: 'precalc_functions', topic: 'rates', operation: 'average_rate', function: { type: 'polynomial', coefficients: [2, -3, 1] }, from: '1/2', to: '3/2' });
+solve({ kind: 'parametric', operation: 'evaluate', x: [1, 2], y: [0, 1, 1], t: '1/2' });
+solve({ kind: 'trig_models', operation: 'analyze', function: 'sin', scale: '3/2', rate: '2/3', shift: '1/5', offset: '-1/4' });
+```
+
+The exact angle representation uses `angle: '1/6'` for pi/6 radians. An unsupported angle or inverse-polar point returns an unverified report rather than a sampled answer. Details of each structured operation and its restrictions are in [precalculus.js](./precalculus.js).
+Function coefficient arrays are in ascending power order; for example `[2, -3, 1]` represents `x^2 - 3x + 2`. Function rules and their bounds are documented in [precalc-functions.js](./precalc-functions.js).
+The [parametric module](./parametric.js) checks bounded polynomial coordinate domains, positions, average motion, and selected exact Cartesian eliminations without calculus.
+The [trigonometric models module](./trig-models.js) checks exact sinusoidal parameters, selected principal inverse values, and angle-specific identities on the pi/12 grid. An identity checked at one angle is not a proof of the identity for every real angle.
+
 ## Geometry measurements
 
 ```js
@@ -143,6 +171,9 @@ solve({ kind: 'geometry', topic: 'rectangle', length: 5, width: 3 });
 solve({ kind: 'geometry', topic: 'sphere', radius: 3 });
 solve({ kind: 'geometry', topic: 'cylinder', radius: 3, height: 5 });
 solve({ kind: 'geometry', topic: 'similarity', scaleFactor: 2, side: 5 });
+solve({ kind: 'geometry', topic: 'circle_sector', radius: 3, centralAngle: 120 });
+solve({ kind: 'geometry', topic: 'perpendicular_bisector', points: [[0,0],[4,0]] });
+solve({ kind: 'geometry', topic: 'circumcircle', points: [[0,0],[4,0],[0,4]] });
 ```
 
 Measurements are objects with an exact formula string and an approximate numerical `value`. Their assurance is `numerical-formula-check`, not a claim of arbitrary formal geometry proof. Positivity, triangle degeneracy, missing assumptions, and undefined slopes are checked. Additional shape schemas and aliases are documented in [geometry.js](./geometry.js).
@@ -180,7 +211,7 @@ solve({
 });
 ```
 
-Premises reference givens as `g0` and earlier steps as `s0`. Rules include midpoint definitions, reflexivity, transitivity, SSS/SAS/ASA/AAS congruence, corresponding parts, and angle rules with explicit hypotheses. Unsupported rules, missing premises, circular references, incorrect correspondence, and SSA/AAA congruence are rejected. This is a bounded Euclidean rule checker, not a general-purpose theorem prover.
+Premises reference givens as `g0` and earlier steps as `s0`. Rules include midpoint definitions, reflexivity, transitivity, SSS/SAS/ASA/AAS congruence, AA/SSS/SAS similarity, corresponding parts, circle-tangent perpendicularity, inscribed angles intercepting the same arc, and Pythagorean theorem/converse with explicit hypotheses. Unsupported rules, missing premises, circular references, incorrect correspondence, and SSA/AAA congruence are rejected. This is a bounded Euclidean rule checker, not a general-purpose theorem prover.
 
 ## Correctness and resource boundaries
 
@@ -190,7 +221,7 @@ Premises reference givens as `g0` and earlier steps as `s0`. Rules include midpo
 - Matrix and sequence extensions replay exact computations and reject forged reports.
 - Measurements and graph previews label their numerical approximations.
 - Expression size, polynomial degree and term counts, matrix dimensions, and combinatorial inputs have explicit bounds.
-- Natural-language word problems, handwriting, arbitrary geometry diagrams, rotated conics, unrestricted nonlinear systems, and general transcendental solving are not supported.
+- Unrestricted natural-language word problems, handwriting, arbitrary geometry diagrams, arbitrary rotations of conics, unrestricted nonlinear systems, and general transcendental solving are not supported.
 - No independent curriculum-coverage percentage has been established.
 
 ## Modules
@@ -208,6 +239,12 @@ Premises reference givens as `g0` and earlier steps as `s0`. Rules include midpo
 | [compound-inequalities.js](./compound-inequalities.js) | Rational interval intersections, unions, and chained comparisons |
 | [literal-equations.js](./literal-equations.js) | Symbolic linear rearrangement with parameter case analysis |
 | [piecewise.js](./piecewise.js) | First-match branch domains, polynomial ranges, and exact evaluation |
+| [precalculus.js](./precalculus.js) | Bounded exact unit-circle, polar, and vector operations with replay |
+| [precalc-functions.js](./precalc-functions.js) | Exact bounded rates, polynomial/rational behavior, and exponential/log models |
+| [data-reasoning.js](./data-reasoning.js) | Exact bounded regression, two-way tables, and combinatorial probabilities |
+| [parametric.js](./parametric.js) | Exact bounded polynomial parametric position, motion, and elimination |
+| [trig-models.js](./trig-models.js) | Exact bounded sinusoidal models, inverse trig, and angle-specific identities |
+| [word-problems.js](./word-problems.js) | Strict English sentence templates, exact facts/units, and answer replay |
 | [finite-aggregates.js](./finite-aggregates.js) | Exact finite sums and products |
 | [latex.js](./latex.js) | Owned notation bridge, output formatting, and independent LaTeX validation |
 | [curriculum.js](./curriculum.js) | Locally authored fixed-answer acceptance cases and explicit remaining gaps |

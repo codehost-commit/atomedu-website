@@ -123,9 +123,17 @@ class Reader {
     if (this.peek()?.type === 'command' && this.peek('left')) this.take();
     const t = this.peek();
     if (t?.type === '(' || t?.type === '{' || t?.type === '[') { this.take(); return this.group({ '(': ')', '{': '}', '[': ']' }[t.type]).slice(1, -1); }
+    // A common unbraced trig argument is a numeric coefficient followed by
+    // one variable: \sin3x means sin(3x), while \sin(3)x remains sin(3)*x.
+    // An explicit \cdot or \times prevents this grouping.
+    let coefficient = '';
+    if (t?.type === 'number' && this.tokens[this.i + 1]?.type === 'word'
+      && /^[A-Za-z]$/.test(this.tokens[this.i + 1].value)) {
+      coefficient = this.take().value;
+    }
     let value = this.argument();
     if (this.peek('^')) { this.take(); value = `(${value})^(${this.argument()})`; }
-    return value;
+    return coefficient + value;
   }
   atom() {
     const t = this.take(); if (!t) fail('An operand is missing.', { incomplete: true });
@@ -620,6 +628,110 @@ function asciiSetMembership(source) {
   return match;
 }
 
+// Precalculus inputs use rational multiples of pi and exact field scalars.
+// Build notation only from fixed commands and parsed rationals; all other
+// supplied values still pass through the ordinary escaped renderer.
+function precalculusScalarLatex(value, render) {
+  if (value && typeof value === 'object' && typeof value.expression === 'string') {
+    try { return astLatex(parseExpression(value.expression)); }
+    catch { return text(value.expression); }
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const roots = { rational: '', sqrt2: '\\sqrt{2}', sqrt3: '\\sqrt{3}', sqrt6: '\\sqrt{6}' };
+    const keys = Object.keys(value);
+    if (keys.length && keys.every(key => Object.hasOwn(roots, key))) {
+      try {
+        const terms = [];
+        for (const key of Object.keys(roots)) {
+          if (!Object.hasOwn(value, key)) continue;
+          const coefficient = Q(value[key]);
+          if (coefficient.zero) continue;
+          const magnitude = coefficient.n < 0n ? coefficient.neg() : coefficient;
+          const body = key === 'rational' ? render(String(magnitude)) :
+            `${magnitude.eq(Q(1)) ? '' : render(String(magnitude))} ${roots[key]}`.trim();
+          terms.push({ negative: coefficient.n < 0n, body });
+        }
+        return terms.map((term, i) => `${term.negative ? i ? ' - ' : '-' : i ? ' + ' : ''}${term.body}`).join('') || '0';
+      } catch { return text('Invalid scalar'); }
+    }
+  }
+  try { return render(String(Q(value))); }
+  catch { return text(value); }
+}
+
+function piMultipleLatex(value, render) {
+  try {
+    const q = Q(value), negative = q.n < 0n;
+    const n = negative ? -q.n : q.n;
+    if (n === 0n) return '0';
+    const numerator = n === 1n ? '\\pi' : `${n}\\pi`;
+    return `${negative ? '-' : ''}${q.d === 1n ? numerator : `\\frac{${numerator}}{${q.d}}`}`;
+  } catch { return text(value); }
+}
+
+function precalculusInputLatex(input, render) {
+  const scalar = value => precalculusScalarLatex(value, render);
+  const angle = value => piMultipleLatex(value, render);
+  const pair = values => Array.isArray(values) ? `\\left(${values.map(scalar).join(', ')}\\right)` : text('Invalid point');
+  const vector = values => Array.isArray(values) ? `\\left\\langle ${values.map(scalar).join(', ')} \\right\\rangle` : text('Invalid vector');
+  const polar = value => value && typeof value === 'object' ?
+    `\\left(${scalar(value.radius)}, ${angle(value.angle)}\\right)` : text('Invalid polar pair');
+  const operation = input.operation;
+  if (input.topic === 'trigonometry') {
+    if (operation === 'unit_circle') return `\\theta = ${angle(input.angle)}`;
+    if (operation === 'double_angle') return `2\\theta,\\quad \\theta = ${angle(input.angle)}`;
+    if (operation === 'angle_sum' || operation === 'angle_difference') return `\\theta = ${angle(input.angleA)} ${operation === 'angle_sum' ? '+' : '-'} ${angle(input.angleB)}`;
+    if (operation === 'solve_equation') {
+      const fn = ['sin', 'cos', 'tan'].includes(input.function) ? `\\${input.function}` : text(input.function);
+      const bounds = input.interval;
+      const interval = bounds && typeof bounds === 'object' ?
+        `\\left${bounds.includeLower === false ? '(' : '['}${angle(bounds.lower)}, ${angle(bounds.upper)}\\right${bounds.includeUpper === false ? ')' : ']'}` : text('Invalid interval');
+      return `${fn}\\left(\\theta\\right) = ${scalar(input.target)},\\quad \\theta \\in ${interval}`;
+    }
+  }
+  if (input.topic === 'polar') {
+    if (operation === 'to_cartesian') return `\\left(r,\\theta\\right) = \\left(${scalar(input.radius)}, ${angle(input.angle)}\\right)`;
+    if (operation === 'to_polar') return `\\begin{aligned}\\left(x,y\\right) &= ${pair(input.point)}\\end{aligned}`;
+    if (operation === 'rotate') return `\\operatorname{rotate}\\left(${pair(input.point)}, ${angle(input.angle)}\\right)`;
+    if (operation === 'polar_product') return `\\begin{aligned}${polar(input.first)} \\cdot ${polar(input.second)}\\end{aligned}`;
+  }
+  if (input.topic === 'vector') {
+    const a = vector(input.a), b = vector(input.b);
+    if (operation === 'add') return `${a} + ${b}`;
+    if (operation === 'subtract') return `${a} - ${b}`;
+    if (operation === 'dot') return `${a} \\cdot ${b}`;
+    if (operation === 'cross') return `${a} \\times ${b}`;
+    if (operation === 'scale') return `${scalar(input.factor)} ${a}`;
+    if (operation === 'norm') return `\\left\\lVert ${a} \\right\\rVert`;
+    if (operation === 'distance') return `d\\left(${a}, ${b}\\right)`;
+    if (operation === 'projection') return `\\operatorname{proj}_{${b}}\\left(${a}\\right)`;
+    if (operation === 'rotate') return `\\operatorname{rotate}\\left(${a}, ${angle(input.angle)}\\right)`;
+  }
+  return null;
+}
+
+function precalculusAnswerLatex(answer, render) {
+  if (answer.exact !== true) return null;
+  const scalar = value => precalculusScalarLatex(value, render);
+  const angle = value => piMultipleLatex(value, render);
+  const vector = values => `\\left\\langle ${values.map(scalar).join(', ')} \\right\\rangle`;
+  if (typeof answer.expression === 'string' && answer.coefficients && typeof answer.coefficients === 'object') return scalar(answer);
+  if (Array.isArray(answer.solutions) && answer.unit === 'pi' && ['sin', 'cos', 'tan'].includes(answer.function))
+    return `\\theta \\in ${answer.solutions.length ? `\\left\\{${answer.solutions.map(angle).join(', ')}\\right\\}` : '\\varnothing'}`;
+  if (answer.cos && answer.sin && Object.hasOwn(answer, 'tan'))
+    return `\\begin{aligned}\\theta &= ${angle(answer.piMultiple)} \\\\ \\cos\\theta &= ${scalar(answer.cos)} \\\\ \\sin\\theta &= ${scalar(answer.sin)} \\\\ \\tan\\theta &= ${answer.tan === null ? text('undefined') : scalar(answer.tan)}\\end{aligned}`;
+  if (Object.hasOwn(answer, 'radius') && Object.hasOwn(answer, 'piMultiple')) {
+    const polar = `\\left(r,\\theta\\right) = \\left(${scalar(answer.radius)}, ${angle(answer.piMultiple)}\\right)`;
+    if (Array.isArray(answer.components)) return `\\begin{aligned}\\left(r,\\theta\\right) &= \\left(${scalar(answer.radius)}, ${angle(answer.piMultiple)}\\right) \\\\ \\left(x,y\\right) &= \\left(${answer.components.map(scalar).join(', ')}\\right)\\end{aligned}`;
+    return answer.angleConvention === 'origin' ? `${polar},\\quad ${text('angle chosen by convention')}` : polar;
+  }
+  if (Array.isArray(answer.components) && [2, 3].includes(answer.dimension)) return vector(answer.components);
+  if (answer.value?.coefficients) return scalar(answer.value);
+  if (answer.determinant?.coefficients) return scalar(answer.determinant);
+  if (answer.magnitude?.expression && answer.squared?.coefficients) return scalar(answer.magnitude);
+  return null;
+}
+
 /** Format mathematical values without interpolating untrusted TeX commands. */
 export function toLatex(value) {
   const active = new WeakSet();
@@ -639,8 +751,11 @@ export function toLatex(value) {
     if (active.has(v)) return text('Circular value');
     active.add(v);
     let result;
+    const precalculusAnswer = v.exact === true ? precalculusAnswerLatex(v, next) : null;
     if (v instanceof Rational) result = astLatex({ type: 'num', value: String(v) });
     else if (['num', 'sym', 'neg', 'binary', 'call'].includes(v.type)) { try { result = astLatex(v); } catch { result = text('Invalid expression'); } }
+    else if (v.kind === 'precalculus') result = precalculusInputLatex(v, next) ?? text('Unsupported precalculus input');
+    else if (precalculusAnswer !== null) result = precalculusAnswer;
     else if (v.kind === 'expression' && v.expression) result = next(v.expression);
     else if (['equation', 'inequality'].includes(v.kind) && v.left && v.right) result = `${next(v.left)} ${{ '<=': '\\le', '>=': '\\ge', '!=': '\\ne' }[v.relation] || (['<', '>'].includes(v.relation) ? v.relation : '=')} ${next(v.right)}`;
     else if (v.kind === 'function' && v.expression) result = `${symbol(v.name || 'f')}\\left(${symbol(v.variable || 'x')}\\right) = ${next(v.expression)}`;
